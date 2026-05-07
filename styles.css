@@ -335,6 +335,15 @@ a.card:hover {
   color: var(--fg-mute);
 }
 .checklist .text { flex: 1; }
+.checklist .day-item-header {
+  padding: 0.5rem 0.65rem 0.2rem;
+  font-weight: 600;
+  color: var(--fg-dim);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.checklist .day-item-header + li label { margin-top: 0; }
 
 .exercise-group { margin-bottom: 1.25rem; }
 .exercise-group .group-head {

@@ -162,14 +162,27 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// Parse a day's bodyHtml into one array of inline child nodes per <p>.
-// Falls back to a single item containing all nodes if there are no <p>s.
+// Parse a day's bodyHtml into structured items: actionable tasks, section
+// headers (rendered as labels without checkboxes), or skipped junk left over
+// from the source HTML (Word artifacts, stray "Session N:" links).
+// Items keep their original paragraph index so checkbox state stays stable
+// even when classification changes.
 function parseDayItems(html) {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
   const paragraphs = Array.from(tmp.children).filter((c) => c.tagName === "P");
-  if (!paragraphs.length) return [];
-  return paragraphs.map((p) => Array.from(p.childNodes));
+  return paragraphs.map((p, idx) => {
+    const text = (p.textContent || "").replace(/\s+/g, " ").trim();
+    const cls = p.getAttribute("class") || "";
+    const hasHeading = !!p.querySelector("h1,h2,h3,h4,h5,h6");
+    if (!text || hasHeading || /MsoNormal/i.test(cls) || /^session\s+\d+\s*:?$/i.test(text)) {
+      return { type: "skip", idx };
+    }
+    if (/^hearing\s+sounds\b/i.test(text)) {
+      return { type: "header", idx, nodes: Array.from(p.childNodes) };
+    }
+    return { type: "task", idx, nodes: Array.from(p.childNodes) };
+  }).filter((it) => it.type !== "skip");
 }
 
 // ---------------------------------------------------------------------------
@@ -560,16 +573,22 @@ function renderLesson(cls, lessonId) {
       const items = parseDayItems(day.bodyHtml || "");
       if (items.length) {
         const list = el("ul", { class: "checklist day-items" });
-        items.forEach((nodes, idx) => {
+        items.forEach((item) => {
+          if (item.type === "header") {
+            const span = el("span", { class: "text" });
+            for (const n of item.nodes) span.appendChild(n);
+            list.appendChild(el("li", { class: "day-item-header" }, span));
+            return;
+          }
           const cb = el("input", {
             type: "checkbox",
-            checked: isDayItemChecked(cls.id, lesson.id, dayKey, idx),
+            checked: isDayItemChecked(cls.id, lesson.id, dayKey, item.idx),
             onChange: (e) => {
-              setDayItemChecked(cls.id, lesson.id, dayKey, idx, e.target.checked);
+              setDayItemChecked(cls.id, lesson.id, dayKey, item.idx, e.target.checked);
             },
           });
           const text = el("span", { class: "text" });
-          for (const n of nodes) text.appendChild(n);
+          for (const n of item.nodes) text.appendChild(n);
           list.appendChild(el("li", {}, el("label", {}, cb, text)));
         });
         block.appendChild(list);

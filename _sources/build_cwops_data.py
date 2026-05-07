@@ -158,6 +158,8 @@ def clean_inline(html: str) -> str:
     # Drop style/class attributes everywhere.
     s = re.sub(r"\s+(style|class|lang|align|valign|width|height|border|cellpadding|cellspacing)=\"[^\"]*\"", "", s, flags=re.I)
     s = re.sub(r"\s+(style|class|lang|align|valign|width|height|border|cellpadding|cellspacing)='[^']*'", "", s, flags=re.I)
+    # Same again for unquoted values (class=MsoNormal, align=left, etc.).
+    s = re.sub(r"\s+(style|class|lang|align|valign|width|height|border|cellpadding|cellspacing)=[^\s>]+", "", s, flags=re.I)
     # Replace nbsp with normal space.
     s = s.replace("&nbsp;", " ").replace("&#160;", " ")
     # Normalize curly quotes the source uses so JSON-encoding doesn't break.
@@ -205,15 +207,24 @@ def split_paragraphs(fragment: str) -> str:
     parts = re.split(r"</p>", fragment, flags=re.I)
     cleaned = []
     for part in parts:
-        # Strip opening <p ...> if present.
-        part = re.sub(r"^\s*<p\b[^>]*>", "", part, flags=re.I).strip()
-        # Strip leftover stray closing tags.
-        part = re.sub(r"^\s*<br\b[^>]*/?>", "", part, flags=re.I).strip()
+        # Drop ALL <p ...> openers anywhere in the part — Word exports can leave
+        # nested or stray openers that would otherwise produce <p><p>...</p>.
+        part = re.sub(r"<p\b[^>]*>", "", part, flags=re.I).strip()
+        # Strip stray <br> tags (with or without a "clear=all" attribute).
+        part = re.sub(r"<br\b[^>]*/?>", " ", part, flags=re.I).strip()
         if not part:
+            continue
+        # Drop any leftover heading tags entirely (they sometimes survive as
+        # <h3>Session 2:</h3> inside what should be plain prose).
+        if re.match(r"^\s*<h[1-6]\b", part, flags=re.I):
             continue
         # Skip if it's only punctuation or a single non-breaking space.
         text_only = re.sub(r"<[^>]+>", "", part).strip()
         if not text_only:
+            continue
+        # Skip stray "Session N:" cross-references that the Word export emits
+        # as standalone paragraphs at the end of Day 3 sections.
+        if re.match(r"^session\s+\d+\s*:?$", text_only, flags=re.I):
             continue
         cleaned.append(f"<p>{part}</p>")
     return "\n".join(cleaned)
