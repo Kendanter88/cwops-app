@@ -476,6 +476,27 @@ a.card:hover {
   margin-bottom: 0.5rem;
 }
 .day-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
+.day-date {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fg-mute);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+.submit-hw {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.submit-hw .btn { min-width: 180px; }
+.submit-hw-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--fg-dim);
+  font-style: italic;
+}
 .day-done {
   display: inline-flex;
   align-items: center;
@@ -565,6 +586,79 @@ a.card:hover {
   border-color: var(--accent);
 }
 .tool-chip.audio:hover { background: var(--accent); color: var(--accent-fg); }
+
+/* ---------------------------------------------------------- */
+/* In-app practice tool guides (#/g/<slug>)                     */
+/* ---------------------------------------------------------- */
+.guide-speed { margin-bottom: 1rem; }
+.guide-intro { color: var(--fg-dim); margin-bottom: 1.5rem; }
+
+.guide-section {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+.guide-section > h2 {
+  margin: 0 0 0.4rem;
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+.guide-where {
+  font-size: 0.85rem;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.guide-procedure {
+  background: var(--bg-3);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem 0.7rem 0.9rem;
+  margin: 0.75rem 0;
+}
+.guide-procedure h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--fg-dim);
+}
+.guide-procedure ol { margin: 0; padding-left: 1.4em; }
+.guide-procedure li { margin: 0.15em 0; }
+
+.guide-mode {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+.guide-mode > h3 {
+  margin: 0 0 0.3rem;
+  color: var(--fg);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1rem;
+}
+.guide-mode-meta {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+.guide-steps { margin: 0.4rem 0 0; padding-left: 1.4em; }
+.guide-steps li { margin: 0.2em 0; }
+
+.guide-attrib {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--fg-mute);
+  text-align: center;
+}
 
 /* Print */
 @media print {
