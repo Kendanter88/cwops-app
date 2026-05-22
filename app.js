@@ -302,6 +302,326 @@ function formatDayDate(date) {
 
 const SUBMIT_HW_URL = "https://docs.google.com/forms/d/e/1FAIpQLScVofUQMR3P8G2Ayom5iEspPMsCRe51CdaNkF6Vc-WGk-WniA/viewform";
 
+// ---------------------------------------------------------------------------
+// Homework form (per-lesson) — feeds the CWA HW submission Google Form
+// ---------------------------------------------------------------------------
+// Values save to localStorage at state[classId][lessonId].hw[key].
+// "HW output" button opens a new tab with question/answer pairs in the exact
+// wording of the Google Form so values can be copy/pasted across.
+
+const RATING_LABELS = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good" };
+
+// CWA "files and speed" rows are derived from the lesson's exercise tools.
+// Tool names follow `<code><file#>-<speed>` (e.g. WD101-10, DIS4-13, IR6-15).
+// We bucket each code into the form row it belongs to; multiples join with `;`.
+const CWA_CODE_BUCKETS = {
+  WD: "shortWords", PR: "shortPhrases", QSO: "shortQso", POTA: "shortPota",
+  DIS: "prefix", UN: "prefix", IM: "prefix", IN: "prefix", RE: "prefix", IR: "prefix",
+  ING: "suffix", ES: "suffix", ED: "suffix", LY: "suffix",
+};
+
+function gatherLessonExerciseCodes(lesson) {
+  const out = { shortWords: [], shortPhrases: [], shortQso: [], shortPota: [], prefix: [], suffix: [] };
+  const seen = new Set();
+  for (const day of lesson.days || []) {
+    for (const tool of day.tools || []) {
+      const name = (tool.name || "").trim();
+      const m = /^([A-Z]+)\d+-\d+$/i.exec(name);
+      if (!m) continue;
+      const bucket = CWA_CODE_BUCKETS[m[1].toUpperCase()];
+      if (!bucket) continue;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      out[bucket].push(name);
+    }
+  }
+  return out;
+}
+
+const HW_FORM_GROUPS = [
+  {
+    id: "scales",
+    title: "Scales",
+    fields: [
+      { key: "scales", type: "rating", label: "How did Scales go?", exportLabel: "How did Scales go" },
+    ],
+  },
+  {
+    id: "morse-runner",
+    title: "Morse Runner",
+    blurb: "Highest numbers from the last three days (desktop or web).",
+    exportHeader: "Morse Runner (desktop or web) in last three days highest numbers",
+    fields: [
+      { key: "mrSpeed", type: "text", label: "Speed (WPM)", exportLabel: "Morse Runner Speed WPM", placeholder: 'i.e. "15"' },
+      { key: "mrPoints", type: "text", label: "Highest verified points (1–60)", exportLabel: "Morse Runner Highest Verified Pts [1 to 60] not Score" },
+    ],
+  },
+  {
+    id: "lcwo-callsign",
+    title: "LCWO Callsign Training",
+    blurb: "Optional.",
+    exportHeader: "LCWO Callsign Training Optional",
+    fields: [
+      { key: "callsignSpeed", type: "text", label: "Speed (WPM)", exportLabel: "Callsign Speed WPM" },
+      { key: "callsignScore", type: "text", label: "Score", exportLabel: "Callsign Score" },
+      { key: "callsignErrors", type: "text", label: "# of errors", exportLabel: "Callsign # of Errors" },
+    ],
+  },
+  {
+    id: "lcwo-code",
+    title: "LCWO Code Practice",
+    exportHeader: "LCWO Code Practice",
+    fields: [
+      { key: "lettersGroupLen", type: "text", label: "Letters — group length", exportLabel: "Letters Group Length", placeholder: 'i.e. "3"' },
+      { key: "lettersSpeed", type: "text", label: "Letters — effective speed", exportLabel: "Letters Effective Speed", placeholder: 'i.e. "15"' },
+      { key: "lettersErrors", type: "text", label: "Letters — % errors", exportLabel: "Letters Percent of Errors", placeholder: 'i.e. Errors: "30 = 29.4%"' },
+      { key: "wordSpeed", type: "text", label: "Word — speed", exportLabel: "Word Training Speed (does not use CW settings)", placeholder: 'i.e. "13"' },
+      { key: "wordMaxLen", type: "text", label: "Word — max length", exportLabel: "Word Training Maximum Length", placeholder: 'i.e. "3"' },
+      { key: "wordErrors", type: "text", label: "Word — # errors", exportLabel: "Word Training Number of Errors", placeholder: "count the red 'received'  i.e. \"8\"" },
+      { key: "wordScore", type: "text", label: "Word — score", exportLabel: "Word Training Score", placeholder: 'i.e. "850"' },
+      { key: "figuresGroupLen", type: "text", label: "Figures — group length", exportLabel: "Figures Group Length", placeholder: 'i.e. "Numbers"' },
+      { key: "figuresSpeed", type: "text", label: "Figures — effective speed", exportLabel: "Figures Effective Speed" },
+      { key: "figuresErrors", type: "text", label: "Figures — % errors", exportLabel: "Figures Percent of Errors (correct answers)" },
+      { key: "kochLen", type: "text", label: "Koch — length", exportLabel: "Custom Characters (Koch) Length" },
+      { key: "kochSpeed", type: "text", label: "Koch — effective speed", exportLabel: "Custom Characters (Koch) Effective Speed" },
+      { key: "kochErrors", type: "text", label: "Koch — % errors", exportLabel: "Custom Characters (Koch) Percent of Errors (correct answers)" },
+    ],
+  },
+  {
+    id: "cwa-sounds",
+    title: "CWA New Sound Files",
+    exportHeader: "CWA New Sound Files",
+    fields: [
+      { key: "shortWords", type: "derived", deriveKey: "shortWords", label: "Short Words — files and speed", exportLabel: "Short Words files and speed" },
+      { key: "shortWordsRating", type: "rating", label: "How did Short Words go?", exportLabel: "How did Short Words go" },
+      { key: "shortPhrases", type: "derived", deriveKey: "shortPhrases", label: "Short Phrases — files and speed", exportLabel: "Short Phrases Files and speed" },
+      { key: "shortPhrasesRating", type: "rating", label: "How did Short Phrases go?", exportLabel: "How did Short Phrases go" },
+      { key: "shortQso", type: "derived", deriveKey: "shortQso", label: "Short QSO — files and speed", exportLabel: "Short QSO files and speed" },
+      { key: "shortQsoRating", type: "rating", label: "How did Short QSO's go?", exportLabel: "How did Short QSO's go" },
+      { key: "shortPota", type: "derived", deriveKey: "shortPota", label: "Short POTA — files and speed", exportLabel: "Short POTA files and speed" },
+      { key: "shortPotaRating", type: "rating", label: "How did Short POTA go?", exportLabel: "How did Short POTA go" },
+      { key: "prefix", type: "derived", deriveKey: "prefix", label: "Prefix — files and speed", exportLabel: "Prefix files and speed" },
+      { key: "prefixRating", type: "rating", label: "How did Prefixes go?", exportLabel: "How did Prefixes go" },
+      { key: "suffix", type: "derived", deriveKey: "suffix", label: "Suffix — files and speed", exportLabel: "Suffix files and speed" },
+      { key: "suffixRating", type: "rating", label: "How did Suffixes go?", exportLabel: "How did Suffixes go" },
+    ],
+  },
+  {
+    id: "new-words",
+    title: "New Words",
+    fields: [
+      { key: "newWords", type: "textarea", label: "What new words did you learn?", exportLabel: "What new words did you learn" },
+    ],
+  },
+  {
+    id: "mst-sst-cwt",
+    title: "MST / SST / CWT",
+    blurb: "Actual MST on Mondays, K1USN SST Friday afternoon or Sunday evening, or Wednesday CWT's.",
+    exportHeader: "Actual MST on Mondays,  K1USN SST Friday afternoon or Sunday evening,  or Wednesday CWT's",
+    fields: [
+      { key: "mstCallsigns", type: "textarea", label: "Callsigns you heard", exportLabel: "What Callsigns did you hear" },
+      { key: "mstNames", type: "textarea", label: "Names and exchanges you heard", exportLabel: "What Names and Exchanges did you hear" },
+      { key: "mstComments", type: "textarea", label: "Comments", exportLabel: "MST, SST or CWT Comments" },
+    ],
+  },
+  {
+    id: "on-air",
+    title: "On-Air QSOs",
+    blurb: "QSOs you made in the last three days.",
+    exportHeader: "On Air QSO's you made - last three days",
+    fields: [
+      { key: "onAirCallsigns", type: "textarea", label: "Callsigns you worked", exportLabel: "What Callsigns did you work" },
+      { key: "onAirNames", type: "textarea", label: "First names of people you worked", exportLabel: "First names of people you worked" },
+    ],
+  },
+];
+
+function getHw(classId, lessonId) {
+  return loadState()[classId]?.[lessonId]?.hw || {};
+}
+function setHwField(classId, lessonId, key, value) {
+  const s = loadState();
+  s[classId] ??= {};
+  s[classId][lessonId] ??= {};
+  s[classId][lessonId].hw ??= {};
+  if (value === "" || value == null || value === 0) {
+    delete s[classId][lessonId].hw[key];
+  } else {
+    s[classId][lessonId].hw[key] = value;
+  }
+  saveState(s);
+}
+
+function renderRating(initial, onChange) {
+  let current = Number(initial) || 0;
+  const wrap = el("div", { class: "rating", role: "radiogroup" });
+  const stars = [];
+  for (let i = 1; i <= 4; i++) {
+    const label = RATING_LABELS[i];
+    const star = el("button", {
+      type: "button",
+      class: "star" + (i <= current ? " on" : ""),
+      title: `${label} (${i})`,
+      "aria-label": label,
+      role: "radio",
+      "aria-checked": String(i === current),
+      onClick: () => {
+        current = current === i ? 0 : i;
+        stars.forEach((s, idx) => {
+          s.classList.toggle("on", idx + 1 <= current);
+          s.setAttribute("aria-checked", String(idx + 1 === current));
+        });
+        onChange(current);
+      },
+    }, "★");
+    stars.push(star);
+    wrap.appendChild(star);
+  }
+  return wrap;
+}
+
+function renderHwField(cls, lesson, field, derivedCodes) {
+  const stored = getHw(cls.id, lesson.id)[field.key];
+  const wrap = el("div", { class: `hw-field hw-field-${field.type}` });
+
+  if (field.type === "rating") {
+    wrap.appendChild(el("div", { class: "hw-label" }, field.label));
+    wrap.appendChild(renderRating(Number(stored) || 0, (v) => {
+      setHwField(cls.id, lesson.id, field.key, v);
+    }));
+    return wrap;
+  }
+
+  if (field.type === "derived") {
+    wrap.appendChild(el("div", { class: "hw-label" }, field.label));
+    const codes = derivedCodes[field.deriveKey] || [];
+    const value = codes.join(";");
+    if (value) {
+      wrap.appendChild(el("div", { class: "hw-derived" }, value));
+    } else {
+      wrap.appendChild(el("div", { class: "hw-derived hw-derived-empty" }, "— none in this lesson —"));
+    }
+    return wrap;
+  }
+
+  const id = `hw-${cls.id}-${lesson.id}-${field.key}`;
+  wrap.appendChild(el("label", { class: "hw-label", htmlFor: id }, field.label));
+
+  const tag = field.type === "textarea" ? "textarea" : "input";
+  const attrs = {
+    id,
+    class: "hw-input",
+    placeholder: field.placeholder || "",
+    value: stored || "",
+    onInput: (e) => setHwField(cls.id, lesson.id, field.key, e.target.value),
+  };
+  if (tag === "input") attrs.type = "text";
+  else attrs.rows = 3;
+  wrap.appendChild(el(tag, attrs));
+  return wrap;
+}
+
+function renderHwForm(cls, lesson) {
+  const section = el("section", { class: "section hw-form" });
+  section.appendChild(el("h3", {}, "Homework form"));
+  section.appendChild(el("p", { class: "hw-blurb" },
+    "Fill these in as you practice. Saved in this browser only — not synced anywhere. Click ",
+    el("strong", {}, "HW output"),
+    " below to get text you can paste into the Google Form."));
+
+  const derivedCodes = gatherLessonExerciseCodes(lesson);
+  for (const group of HW_FORM_GROUPS) {
+    const block = el("div", { class: "hw-group", dataset: { groupId: group.id } });
+    block.appendChild(el("h4", {}, group.title));
+    if (group.blurb) block.appendChild(el("p", { class: "hw-group-blurb" }, group.blurb));
+    const fields = el("div", { class: "hw-fields" });
+    for (const f of group.fields) fields.appendChild(renderHwField(cls, lesson, f, derivedCodes));
+    block.appendChild(fields);
+    section.appendChild(block);
+  }
+  return section;
+}
+
+function buildHwExportText(cls, lesson) {
+  const values = getHw(cls.id, lesson.id);
+  const derivedCodes = gatherLessonExerciseCodes(lesson);
+  const lines = [];
+  for (const group of HW_FORM_GROUPS) {
+    if (group.exportHeader) {
+      if (lines.length) lines.push("");
+      lines.push(group.exportHeader);
+      lines.push("");
+    }
+    for (const f of group.fields) {
+      lines.push(f.exportLabel);
+      if (f.type === "rating") {
+        const v = Number(values[f.key]) || 0;
+        lines.push(v ? RATING_LABELS[v] : "");
+      } else if (f.type === "derived") {
+        lines.push((derivedCodes[f.deriveKey] || []).join(";"));
+      } else {
+        lines.push(String(values[f.key] || ""));
+      }
+      lines.push("");
+    }
+  }
+  return lines.join("\n").replace(/\n+$/, "\n");
+}
+
+function openHwExport(cls, lesson) {
+  const text = buildHwExportText(cls, lesson);
+  const title = `Lesson ${lesson.id} HW — ${cls.shortName}`;
+  const css = `
+    body { font: 14px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; max-width: 80ch; margin: 0 auto; padding: 0 1rem 2rem; color: #1a1d22; background: #f7f5f0; }
+    .bar { position: sticky; top: 0; background: #f7f5f0; padding: 1rem 0 0.75rem; border-bottom: 1px solid #d8d4c4; z-index: 1; }
+    h1 { font: 600 1.1rem/1.3 system-ui, sans-serif; margin: 0 0 0.3rem; color: #1a1d22; }
+    .meta { color: #6b7079; font: 0.85rem/1.4 system-ui, sans-serif; margin: 0 0 0.6rem; }
+    button { padding: 0.5rem 0.9rem; font: 600 0.9rem system-ui, sans-serif; cursor: pointer; border: 1px solid #b8741a; background: #b8741a; color: #fff; border-radius: 6px; }
+    button.copied { background: #6fbf73; border-color: #6fbf73; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #d8d4c4; border-radius: 8px; padding: 1rem; margin: 1rem 0 0; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #14161b; color: #e8e6e1; }
+      .bar { background: #14161b; border-bottom-color: #2a2e36; }
+      h1 { color: #e8e6e1; }
+      .meta { color: #9aa0a8; }
+      pre { background: #0c0d10; border-color: #2a2e36; color: #e8e6e1; }
+      button { background: #d99a3a; border-color: #d99a3a; color: #1a1207; }
+    }
+  `;
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<style>${css}</style></head>
+<body>
+<div class="bar">
+  <h1>${escapeHtml(title)}</h1>
+  <p class="meta">Copy each answer into the Google Form. Blank lines = unanswered.</p>
+  <button id="cp" type="button">Copy all</button>
+</div>
+<pre id="out">${escapeHtml(text)}</pre>
+<script>
+  const btn = document.getElementById('cp');
+  btn.addEventListener('click', async () => {
+    const out = document.getElementById('out');
+    try { await navigator.clipboard.writeText(out.innerText); }
+    catch {
+      const r = document.createRange(); r.selectNodeContents(out);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      try { document.execCommand('copy'); } catch {}
+    }
+    btn.textContent = 'Copied ✓'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy all'; btn.classList.remove('copied'); }, 1500);
+  });
+<\/script>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (!w) {
+    URL.revokeObjectURL(url);
+    alert("Popup blocked — allow popups for this site to open the HW output.");
+  }
+}
+
 function rewriteGuideTools(tools, baseCtx) {
   if (!tools) return tools;
   return tools.map((t) => {
@@ -831,13 +1151,22 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
+  app.appendChild(renderHwForm(cls, lesson));
+
   const submit = el("div", { class: "submit-hw section" });
-  submit.appendChild(el("a", {
+  const submitRow = el("div", { class: "submit-hw-buttons" });
+  submitRow.appendChild(el("button", {
+    type: "button",
+    class: "btn ghost",
+    onClick: () => openHwExport(cls, lesson),
+  }, "HW output ↗"));
+  submitRow.appendChild(el("a", {
     class: "btn",
     href: SUBMIT_HW_URL,
     target: "_blank",
     rel: "noopener",
   }, "Submit HW ↗"));
+  submit.appendChild(submitRow);
   submit.appendChild(el("p", { class: "submit-hw-note" },
     "Submit HW NLT 3 hours prior to class time."));
   app.appendChild(submit);
