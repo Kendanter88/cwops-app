@@ -8,6 +8,7 @@
 
 import { classes, loadClass } from "./data/classes.js";
 import { extras } from "./data/extras.js";
+import { guides } from "./data/guides.js";
 
 const app = document.getElementById("app");
 
@@ -186,14 +187,146 @@ function parseDayItems(html) {
 }
 
 // ---------------------------------------------------------------------------
+// In-app guide link rewriting
+// ---------------------------------------------------------------------------
+// Lesson source HTML links the external CWops LCWO ICR / MCW ICR PDFs and
+// mentions Morse Runner inline as plain text. We swap those for in-app guide
+// pages (see data/guides.js) so the procedure lives next to the lesson
+// context. The same paragraph usually contains the day's target WPM
+// ("set speed at 10 wpm…"), which we surface on the guide page.
+
+const LCWO_ICR_EXTERNAL = "https://cwops.org/wp-content/uploads/2025/03/LCWO-ICR-Guidelines.htm";
+const MCW_ICR_EXTERNAL = "https://cwops.org/wp-content/uploads/2024/08/MorseCode.World-ICR-Guidelines.htm";
+const MCW_TRAINER_URL = "https://morsecode.world/international/trainer/words.html";
+
+function extractWpm(text) {
+  const m = /(\d+)\s*wpm/i.exec(text || "");
+  return m ? Number(m[1]) : null;
+}
+
+function guideUrl(slug, ctx = {}) {
+  const params = new URLSearchParams();
+  if (ctx.speed != null) params.set("speed", String(ctx.speed));
+  if (ctx.classId) params.set("class", ctx.classId);
+  if (ctx.lessonId != null) params.set("lesson", String(ctx.lessonId));
+  if (ctx.dayIdx != null) params.set("day", String(ctx.dayIdx + 1));
+  const qs = params.toString();
+  return `#/g/${slug}${qs ? "?" + qs : ""}`;
+}
+
+// Wraps the first text-node occurrence of `phrase` inside `root` in an <a>
+// pointing at `href`. Skips text already inside an anchor.
+function linkifyPhrase(root, phrase, href, className) {
+  const re = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      if (!node.nodeValue || !re.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement && node.parentElement.closest("a")) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const target = walker.nextNode();
+  if (!target) return false;
+  const match = re.exec(target.nodeValue);
+  const before = target.nodeValue.slice(0, match.index);
+  const matched = target.nodeValue.slice(match.index, match.index + match[0].length);
+  const after = target.nodeValue.slice(match.index + match[0].length);
+  const a = document.createElement("a");
+  a.href = href;
+  if (className) a.className = className;
+  a.textContent = matched;
+  const parent = target.parentNode;
+  if (before) parent.insertBefore(document.createTextNode(before), target);
+  parent.insertBefore(a, target);
+  if (after) parent.insertBefore(document.createTextNode(after), target);
+  parent.removeChild(target);
+  return true;
+}
+
+function rewriteGuideLinks(html, baseCtx) {
+  if (!html) return html;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  for (const p of Array.from(tmp.querySelectorAll("p"))) {
+    const speed = extractWpm(p.textContent) ?? baseCtx.speed;
+    const ctx = { ...baseCtx, speed };
+    p.querySelectorAll(`a[href="${LCWO_ICR_EXTERNAL}"]`).forEach((a) => {
+      a.setAttribute("href", guideUrl("lcwo-icr", ctx));
+      a.removeAttribute("target");
+      a.removeAttribute("rel");
+    });
+    p.querySelectorAll(`a[href="${MCW_ICR_EXTERNAL}"]`).forEach((a) => {
+      a.setAttribute("href", MCW_TRAINER_URL);
+    });
+    if (/morse\s+runner/i.test(p.textContent)) {
+      linkifyPhrase(p, "Morse Runner", guideUrl("morse-runner", ctx));
+    }
+  }
+  return tmp.innerHTML;
+}
+
+// Returns Date objects keyed [lessonIdx][dayIdx]. Anchors each lesson's last
+// day on a class meeting (Tue or Thu) and counts backward for the earlier
+// days, skipping Sunday. `firstClassDateStr` is the date of Lesson 1's last
+// day (the first class meeting). Lessons may share a calendar day at the
+// seam (L(N) last day === L(N+1) first day) — that's expected.
+function computeLessonDates(firstClassDateStr, lessons) {
+  if (!firstClassDateStr || !lessons?.length) return null;
+  const [y, m, d] = firstClassDateStr.split("-").map(Number);
+  const classDay = new Date(y, m - 1, d);
+  const out = [];
+  for (const lesson of lessons) {
+    const dayCount = lesson.days?.length || 0;
+    const days = new Array(dayCount);
+    if (dayCount >= 1) days[dayCount - 1] = new Date(classDay);
+    const cursor = new Date(classDay);
+    for (let i = dayCount - 2; i >= 0; i--) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (cursor.getDay() === 0) cursor.setDate(cursor.getDate() - 1);
+      days[i] = new Date(cursor);
+    }
+    out.push(days);
+    // Advance to next class day: Tue (2) → Thu (+2); Thu (4) → next Tue (+5).
+    const dow = classDay.getDay();
+    classDay.setDate(classDay.getDate() + (dow === 2 ? 2 : dow === 4 ? 5 : 1));
+  }
+  return out;
+}
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function formatDayDate(date) {
+  if (!date) return "";
+  return `${DOW[date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+const SUBMIT_HW_URL = "https://docs.google.com/forms/d/e/1FAIpQLScVofUQMR3P8G2Ayom5iEspPMsCRe51CdaNkF6Vc-WGk-WniA/viewform";
+
+function rewriteGuideTools(tools, baseCtx) {
+  if (!tools) return tools;
+  return tools.map((t) => {
+    if (t.url === LCWO_ICR_EXTERNAL) {
+      return { ...t, url: guideUrl("lcwo-icr", baseCtx) };
+    }
+    if (t.url === MCW_ICR_EXTERNAL) {
+      return { ...t, url: MCW_TRAINER_URL };
+    }
+    return t;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 function parseHash() {
-  const h = location.hash.replace(/^#/, "") || "/";
-  const parts = h.split("/").filter(Boolean);
+  const raw = location.hash.replace(/^#/, "") || "/";
+  const [pathPart, queryPart = ""] = raw.split("?");
+  const params = new URLSearchParams(queryPart);
+  const parts = pathPart.split("/").filter(Boolean);
   if (parts.length === 0) return { route: "home" };
   if (parts[0] === "extras") return { route: "extras" };
+  if (parts[0] === "g" && parts[1]) return { route: "guide", slug: parts[1], params };
   if (parts[0] === "c" && parts[1]) {
     const classId = parts[1];
     if (parts[2] === "intro") return { route: "intro", classId };
@@ -213,6 +346,7 @@ async function render() {
   try {
     if (r.route === "home") return renderHome();
     if (r.route === "extras") return renderExtrasPage();
+    if (r.route === "guide") return renderGuide(r.slug, r.params);
     const cls = await loadClass(r.classId);
     if (!cls) return renderNotFound();
     if (r.route === "class") return renderClass(cls);
@@ -546,14 +680,24 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
+  const allDates = computeLessonDates(cls.firstClassDate, cls.lessons);
+  const lessonIdx = cls.lessons.indexOf(lesson);
+  const dayDates = allDates && lessonIdx >= 0 ? allDates[lessonIdx] : null;
+
   if (lesson.days?.length) {
     const sec = el("section", { class: "section" });
     sec.appendChild(el("h3", {}, "Daily practice"));
     lesson.days.forEach((day, dayIdx) => {
       const dayKey = `day-${dayIdx}`;
+      const ctx = { classId: cls.id, lessonId: lesson.id, dayIdx };
+      const bodyHtml = rewriteGuideLinks(day.bodyHtml || "", ctx);
+      const tools = rewriteGuideTools(day.tools, ctx);
+      const dateStr = dayDates ? formatDayDate(dayDates[dayIdx]) : "";
       const block = el("div", { class: "day-block" });
       const head = el("div", { class: "day-head" });
-      head.appendChild(el("h2", {}, day.label));
+      const heading = el("h2", {}, day.label);
+      if (dateStr) heading.appendChild(el("span", { class: "day-date" }, dateStr));
+      head.appendChild(heading);
       const dayChecked = isDayDone(cls.id, lesson.id, dayKey);
       const dayCheck = el("label", { class: "day-done" },
         el("input", {
@@ -570,7 +714,7 @@ function renderLesson(cls, lessonId) {
       block.appendChild(head);
       if (dayChecked) block.classList.add("done");
 
-      const items = parseDayItems(day.bodyHtml || "");
+      const items = parseDayItems(bodyHtml);
       if (items.length) {
         const list = el("ul", { class: "checklist day-items" });
         items.forEach((item) => {
@@ -594,26 +738,27 @@ function renderLesson(cls, lessonId) {
         block.appendChild(list);
       } else {
         const body = el("div", { class: "rich" });
-        body.innerHTML = day.bodyHtml || "";
+        body.innerHTML = bodyHtml;
         block.appendChild(body);
       }
 
-      if (day.tools?.length) {
+      if (tools?.length) {
         const toolList = el("ul", { class: "tool-strip" });
-        day.tools.forEach((t) => {
+        tools.forEach((t) => {
           const isAudio = /\.mp3$/i.test(t.url);
+          const isInternal = t.url.startsWith("#/");
           toolList.appendChild(el("li", {},
             el("a", {
               class: `tool-chip${isAudio ? " audio" : ""}`,
               href: t.url,
-              target: "_blank",
-              rel: "noopener",
+              target: isInternal ? null : "_blank",
+              rel: isInternal ? null : "noopener",
               title: t.url,
-            }, t.name, isAudio ? " ▶" : " ↗")
+            }, t.name, isAudio ? " ▶" : isInternal ? "" : " ↗")
           ));
         });
         const wrap = el("details", { class: "tool-wrap" },
-          el("summary", {}, `Quick links · ${day.tools.length}`),
+          el("summary", {}, `Quick links · ${tools.length}`),
           toolList,
         );
         block.appendChild(wrap);
@@ -686,6 +831,17 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
+  const submit = el("div", { class: "submit-hw section" });
+  submit.appendChild(el("a", {
+    class: "btn",
+    href: SUBMIT_HW_URL,
+    target: "_blank",
+    rel: "noopener",
+  }, "Submit HW ↗"));
+  submit.appendChild(el("p", { class: "submit-hw-note" },
+    "Submit HW NLT 3 hours prior to class time."));
+  app.appendChild(submit);
+
   // Lesson nav
   const nav = el("div", { class: "lesson-nav" });
   const prev = cls.lessons.find((l) => l.id === lesson.id - 1);
@@ -711,6 +867,104 @@ function toolLink(kind, url) {
     el("span", { class: "label" }, label),
     "↗"
   );
+}
+
+async function renderGuide(slug, params) {
+  clear(app);
+  const guide = guides[slug];
+  if (!guide) return renderNotFound();
+
+  const speed = params.get("speed") ? Number(params.get("speed")) : null;
+  const classId = params.get("class");
+  const lessonId = params.get("lesson") ? Number(params.get("lesson")) : null;
+  const dayNum = params.get("day") ? Number(params.get("day")) : null;
+
+  const trail = [{ label: "Classes", href: "#/" }];
+  if (classId) {
+    try {
+      const cls = await loadClass(classId);
+      if (cls) {
+        trail.push({ label: cls.shortName, href: `#/c/${cls.id}` });
+        if (lessonId != null) {
+          trail.push({ label: `Lesson ${lessonId}`, href: `#/c/${cls.id}/lesson/${lessonId}` });
+        }
+      }
+    } catch { /* class not found — fall through with bare crumb */ }
+  }
+  trail.push({ label: guide.title.split(" — ")[0] });
+  app.appendChild(crumbs(trail));
+
+  app.appendChild(el("h1", {}, guide.title));
+  if (guide.subtitle) app.appendChild(el("p", { class: "subtitle" }, guide.subtitle));
+
+  const buttons = el("div", { class: "button-row section" });
+  if (guide.app?.url) {
+    buttons.appendChild(el("a", { class: "btn", href: guide.app.url, target: "_blank", rel: "noopener" },
+      `Open ${guide.app.name} ↗`));
+  }
+  if (classId && lessonId != null) {
+    buttons.appendChild(el("a", { class: "btn ghost", href: `#/c/${classId}/lesson/${lessonId}` },
+      `← Back to Lesson ${lessonId}`));
+  }
+  if (guide.sourceUrl) {
+    buttons.appendChild(el("a", { class: "btn ghost", href: guide.sourceUrl, target: "_blank", rel: "noopener" },
+      "Original source ↗"));
+  }
+  app.appendChild(buttons);
+
+  if (speed && typeof guide.speedHint === "function") {
+    const dayLabel = dayNum ? ` Day ${dayNum} ·` : "";
+    const callout = el("div", { class: "callout section guide-speed" });
+    callout.appendChild(el("strong", {}, `Lesson context:${dayLabel} `));
+    callout.appendChild(document.createTextNode(guide.speedHint(speed)));
+    app.appendChild(callout);
+  }
+
+  if (guide.intro) {
+    app.appendChild(el("p", { class: "guide-intro" }, guide.intro));
+  }
+
+  for (const sec of guide.sections) {
+    const section = el("section", { class: "section guide-section" });
+    section.appendChild(el("h2", {}, sec.title));
+    if (sec.where) section.appendChild(el("p", { class: "guide-where" }, sec.where));
+    if (sec.blurb) section.appendChild(el("p", {}, sec.blurb));
+
+    if (sec.procedure?.steps?.length) {
+      const block = el("div", { class: "guide-procedure" });
+      block.appendChild(el("h3", {}, sec.procedure.title || "Procedure"));
+      const ol = el("ol");
+      for (const step of sec.procedure.steps) ol.appendChild(el("li", {}, step));
+      block.appendChild(ol);
+      section.appendChild(block);
+    }
+
+    for (const mode of sec.modes || []) {
+      const card = el("div", { class: "guide-mode" });
+      card.appendChild(el("h3", {}, mode.title));
+      const meta = [];
+      if (mode.startWpm != null) meta.push(`Start: ${mode.startWpm} WPM`);
+      if (mode.startChars != null) meta.push(`${mode.startChars} chars`);
+      if (mode.ladder?.length) meta.push(`Speed ladder: ${mode.ladder.join(" → ")} WPM`);
+      if (mode.charLadder?.length) meta.push(`Char ladder: ${mode.charLadder.join(" → ")}`);
+      if (meta.length) {
+        card.appendChild(el("div", { class: "guide-mode-meta" }, meta.join("  ·  ")));
+      }
+      if (mode.steps?.length) {
+        const ol = el("ol", { class: "guide-steps" });
+        for (const step of mode.steps) ol.appendChild(el("li", {}, step));
+        card.appendChild(ol);
+      }
+      section.appendChild(card);
+    }
+
+    app.appendChild(section);
+  }
+
+  if (guide.sourceLabel) {
+    const note = el("p", { class: "guide-attrib" }, `Source: ${guide.sourceLabel}`);
+    app.appendChild(note);
+  }
 }
 
 function renderNotFound() {
