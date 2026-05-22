@@ -14,6 +14,18 @@ export const extras = {
         { wpm: 25, url: "audio/SS-201aORG-25wpm.mp3" },
       ],
     },
+    {
+      name: "77.5",
+      speeds: [
+        { wpm: 40, url: "audio/77.5.40.mp3" },
+      ],
+    },
+    {
+      name: "77 Words (3x)",
+      speeds: [
+        { wpm: 40, url: "audio/77words3x40wpm.mp3" },
+      ],
+    },
   ],
   sending: [
     {
