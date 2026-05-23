@@ -266,7 +266,7 @@ function rewriteGuideLinks(html, baseCtx) {
 }
 
 // Returns Date objects keyed [lessonIdx][dayIdx]. Anchors each lesson's last
-// day on a class meeting (Tue or Thu) and counts backward for the earlier
+// day on a class meeting (Mon or Thu) and counts backward for the earlier
 // days, skipping Sunday. `firstClassDateStr` is the date of Lesson 1's last
 // day (the first class meeting). Lessons may share a calendar day at the
 // seam (L(N) last day === L(N+1) first day) — that's expected.
@@ -286,9 +286,9 @@ function computeLessonDates(firstClassDateStr, lessons) {
       days[i] = new Date(cursor);
     }
     out.push(days);
-    // Advance to next class day: Tue (2) → Thu (+2); Thu (4) → next Tue (+5).
+    // Advance to next class day: Mon (1) → Thu (+3); Thu (4) → next Mon (+4).
     const dow = classDay.getDay();
-    classDay.setDate(classDay.getDate() + (dow === 2 ? 2 : dow === 4 ? 5 : 1));
+    classDay.setDate(classDay.getDate() + (dow === 1 ? 3 : dow === 4 ? 4 : 1));
   }
   return out;
 }

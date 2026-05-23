@@ -2,10 +2,10 @@
 // in the selector. Each module is loaded lazily on demand.
 
 // `firstClassDate` (YYYY-MM-DD) is the date Lesson 1 Day 3 lands on — the
-// first class meeting. Must be a Tuesday or Thursday. Each subsequent lesson's
-// Day 3 is the next class day (Tue→Thu = +2, Thu→Tue = +5). Day 2 is the day
+// first class meeting. Must be a Monday or Thursday. Each subsequent lesson's
+// Day 3 is the next class day (Mon→Thu = +3, Thu→Mon = +4). Day 2 is the day
 // before Day 3; Day 1 is the day before that, skipping Sunday if it lands on
-// one. Lessons may share a day (e.g. L1 D3 = L2 D1 on the same Tue) — that's
+// one. Lessons may share a day (e.g. L1 D3 = L2 D1 on the same Mon) — that's
 // expected: class meets, then the next lesson's prep begins.
 export const classes = [
   {
@@ -14,7 +14,7 @@ export const classes = [
     subtitle: "16 sessions · 10→25 WPM",
     blurb: "CW Academy's Intermediate curriculum. Speed-building over eight weeks with daily practice files, callsign drills, and CWT events.",
     status: "ready",
-    firstClassDate: "2026-05-05",
+    firstClassDate: "2026-05-04",
     loader: () => import("./cwops-intermediate.js"),
   },
 ];
