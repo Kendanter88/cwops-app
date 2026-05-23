@@ -542,71 +542,112 @@ function renderHwForm(cls, lesson) {
   return section;
 }
 
-function buildHwExportText(cls, lesson) {
+function buildHwItems(cls, lesson) {
   const values = getHw(cls.id, lesson.id);
   const derivedCodes = gatherLessonExerciseCodes(lesson);
-  const lines = [];
+  const items = [];
   for (const group of HW_FORM_GROUPS) {
-    if (group.exportHeader) {
-      if (lines.length) lines.push("");
-      lines.push(group.exportHeader);
-      lines.push("");
-    }
+    if (group.exportHeader) items.push({ type: "header", text: group.exportHeader });
     for (const f of group.fields) {
-      lines.push(f.exportLabel);
+      let a = "";
       if (f.type === "rating") {
         const v = Number(values[f.key]) || 0;
-        lines.push(v ? RATING_LABELS[v] : "");
+        a = v ? RATING_LABELS[v] : "";
       } else if (f.type === "derived") {
-        lines.push((derivedCodes[f.deriveKey] || []).join(";"));
+        a = (derivedCodes[f.deriveKey] || []).join(";");
       } else {
-        lines.push(String(values[f.key] || ""));
+        a = String(values[f.key] || "");
       }
+      items.push({ type: "qa", q: f.exportLabel, a });
+    }
+  }
+  return items;
+}
+
+function hwItemsToText(items) {
+  const lines = [];
+  for (const it of items) {
+    if (it.type === "header") {
+      if (lines.length) lines.push("");
+      lines.push(it.text);
+      lines.push("");
+    } else {
+      lines.push(it.q);
+      lines.push(it.a);
       lines.push("");
     }
   }
   return lines.join("\n").replace(/\n+$/, "\n");
 }
 
+function hwItemsToHtml(items) {
+  const parts = [];
+  for (const it of items) {
+    if (it.type === "header") {
+      parts.push(`<h2 class="hdr">${escapeHtml(it.text)}</h2>`);
+    } else {
+      const a = it.a
+        ? `<div class="a">${escapeHtml(it.a)}</div>`
+        : `<div class="a empty">— blank —</div>`;
+      parts.push(`<div class="qa"><div class="q">${escapeHtml(it.q)}</div>${a}</div>`);
+    }
+  }
+  return parts.join("\n");
+}
+
 function openHwExport(cls, lesson) {
-  const text = buildHwExportText(cls, lesson);
+  const items = buildHwItems(cls, lesson);
+  const text = hwItemsToText(items);
+  const bodyHtml = hwItemsToHtml(items);
   const title = `Lesson ${lesson.id} HW — ${cls.shortName}`;
   const css = `
-    body { font: 14px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; max-width: 80ch; margin: 0 auto; padding: 0 1rem 2rem; color: #1a1d22; background: #f7f5f0; }
+    body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; max-width: 80ch; margin: 0 auto; padding: 0 1rem 2rem; color: #1a1d22; background: #f7f5f0; }
     .bar { position: sticky; top: 0; background: #f7f5f0; padding: 1rem 0 0.75rem; border-bottom: 1px solid #d8d4c4; z-index: 1; }
-    h1 { font: 600 1.1rem/1.3 system-ui, sans-serif; margin: 0 0 0.3rem; color: #1a1d22; }
-    .meta { color: #6b7079; font: 0.85rem/1.4 system-ui, sans-serif; margin: 0 0 0.6rem; }
+    h1 { font: 600 1.15rem/1.3 system-ui, sans-serif; margin: 0 0 0.3rem; color: #1a1d22; }
+    .meta { color: #6b7079; font-size: 0.85rem; margin: 0 0 0.6rem; }
     button { padding: 0.5rem 0.9rem; font: 600 0.9rem system-ui, sans-serif; cursor: pointer; border: 1px solid #b8741a; background: #b8741a; color: #fff; border-radius: 6px; }
     button.copied { background: #6fbf73; border-color: #6fbf73; }
-    pre { white-space: pre-wrap; word-break: break-word; background: #fff; border: 1px solid #d8d4c4; border-radius: 8px; padding: 1rem; margin: 1rem 0 0; }
+    .output { margin-top: 1rem; }
+    .hdr { font: 600 1rem system-ui, sans-serif; color: #b8741a; margin: 1.6rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid #d8d4c4; }
+    .hdr:first-child { margin-top: 0.5rem; }
+    .qa { padding: 0.45rem 0; }
+    .q { font-size: 0.85rem; color: #6b7079; margin-bottom: 0.25rem; }
+    .a { font-size: 1.15rem; font-weight: 600; color: #1a1d22; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; word-break: break-word; }
+    .a.empty { font-weight: 400; text-decoration: none; color: #b6b0a4; font-style: italic; font-size: 0.95rem; }
     @media (prefers-color-scheme: dark) {
       body { background: #14161b; color: #e8e6e1; }
       .bar { background: #14161b; border-bottom-color: #2a2e36; }
       h1 { color: #e8e6e1; }
-      .meta { color: #9aa0a8; }
-      pre { background: #0c0d10; border-color: #2a2e36; color: #e8e6e1; }
+      .meta, .q { color: #9aa0a8; }
+      .hdr { color: #d99a3a; border-bottom-color: #2a2e36; }
+      .a { color: #e8e6e1; }
+      .a.empty { color: #6b7079; }
       button { background: #d99a3a; border-color: #d99a3a; color: #1a1207; }
     }
   `;
+  const srcLiteral = JSON.stringify(text).replace(/<\/script/gi, "<\\/script");
   const html = `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>${css}</style></head>
 <body>
 <div class="bar">
   <h1>${escapeHtml(title)}</h1>
-  <p class="meta">Copy each answer into the Google Form. Blank lines = unanswered.</p>
+  <p class="meta">Underlined answers paste into the Google Form. Blank rows are unanswered.</p>
   <button id="cp" type="button">Copy all</button>
 </div>
-<pre id="out">${escapeHtml(text)}</pre>
+<div class="output">${bodyHtml}</div>
 <script>
+  const SRC = ${srcLiteral};
   const btn = document.getElementById('cp');
   btn.addEventListener('click', async () => {
-    const out = document.getElementById('out');
-    try { await navigator.clipboard.writeText(out.innerText); }
+    try { await navigator.clipboard.writeText(SRC); }
     catch {
-      const r = document.createRange(); r.selectNodeContents(out);
-      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      const ta = document.createElement('textarea');
+      ta.value = SRC;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
       try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(ta);
     }
     btn.textContent = 'Copied ✓'; btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copy all'; btn.classList.remove('copied'); }, 1500);
