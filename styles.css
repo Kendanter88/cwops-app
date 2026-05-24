@@ -345,6 +345,35 @@ a.card:hover {
 }
 .checklist .day-item-header + li label { margin-top: 0; }
 
+.checklist li.with-attempts {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  min-height: var(--tap);
+  border: 1px solid transparent;
+}
+.checklist li.with-attempts:hover { background: var(--bg-3); }
+.checklist li.with-attempts > .text { flex: 1; min-width: 0; }
+.checklist li.with-attempts.complete > .text {
+  text-decoration: line-through;
+  color: var(--fg-mute);
+}
+.copy-attempts {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+.copy-attempts input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .exercise-group { margin-bottom: 1.25rem; }
 .exercise-group .group-head {
   display: flex;

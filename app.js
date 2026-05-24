@@ -97,6 +97,31 @@ function setDayItemChecked(classId, lessonId, dayKey, itemIdx, value) {
   saveState(s);
 }
 
+function isAttemptChecked(classId, lessonId, dayKey, itemIdx, attemptIdx) {
+  return !!loadState()[classId]?.[lessonId]?.dayItemAttempts?.[dayKey]?.[itemIdx]?.[attemptIdx];
+}
+function setAttemptChecked(classId, lessonId, dayKey, itemIdx, attemptIdx, value) {
+  const s = loadState();
+  s[classId] ??= {};
+  s[classId][lessonId] ??= {};
+  s[classId][lessonId].dayItemAttempts ??= {};
+  s[classId][lessonId].dayItemAttempts[dayKey] ??= {};
+  s[classId][lessonId].dayItemAttempts[dayKey][itemIdx] ??= {};
+  if (value) s[classId][lessonId].dayItemAttempts[dayKey][itemIdx][attemptIdx] = true;
+  else delete s[classId][lessonId].dayItemAttempts[dayKey][itemIdx][attemptIdx];
+  saveState(s);
+}
+
+// "Copy X at least three times" → 3. Recognizes digits and word numbers
+// up to ten — covers every count used in the CWA Intermediate source.
+const COPY_WORD_NUMBERS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+function extractCopyCount(text) {
+  const m = /\bat\s+least\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.exec(text || "");
+  if (!m) return 0;
+  const tok = m[1].toLowerCase();
+  return Number(tok) || COPY_WORD_NUMBERS[tok] || 0;
+}
+
 function isLessonComplete(classId, lessonId) {
   return !!loadState()[classId]?.[lessonId]?.complete;
 }
@@ -1048,6 +1073,17 @@ function renderLesson(cls, lessonId) {
   if (lesson.days?.length) {
     const sec = el("section", { class: "section" });
     sec.appendChild(el("h3", {}, "Daily practice"));
+
+    // Track each day's "Done" input so cascading item-completion can flip it
+    // without re-rendering, then cascade up to lesson completion.
+    const dayDoneInputs = [];
+    const cascadeLessonComplete = () => {
+      const allDaysDone = lesson.days.every((_, di) => isDayDone(cls.id, lesson.id, `day-${di}`));
+      const currentlyComplete = isLessonComplete(cls.id, lesson.id);
+      if (allDaysDone && !currentlyComplete) setLessonComplete(cls.id, lesson.id, true);
+      else if (!allDaysDone && currentlyComplete) setLessonComplete(cls.id, lesson.id, false);
+    };
+
     lesson.days.forEach((day, dayIdx) => {
       const dayKey = `day-${dayIdx}`;
       const ctx = { classId: cls.id, lessonId: lesson.id, dayIdx };
@@ -1060,22 +1096,32 @@ function renderLesson(cls, lessonId) {
       if (dateStr) heading.appendChild(el("span", { class: "day-date" }, dateStr));
       head.appendChild(heading);
       const dayChecked = isDayDone(cls.id, lesson.id, dayKey);
-      const dayCheck = el("label", { class: "day-done" },
-        el("input", {
-          type: "checkbox",
-          checked: dayChecked,
-          onChange: (e) => {
-            setDayDone(cls.id, lesson.id, dayKey, e.target.checked);
-            block.classList.toggle("done", e.target.checked);
-          },
-        }),
-        el("span", {}, "Done")
-      );
-      head.appendChild(dayCheck);
+      const dayInput = el("input", {
+        type: "checkbox",
+        checked: dayChecked,
+        onChange: (e) => {
+          setDayDone(cls.id, lesson.id, dayKey, e.target.checked);
+          block.classList.toggle("done", e.target.checked);
+          cascadeLessonComplete();
+        },
+      });
+      dayDoneInputs[dayIdx] = dayInput;
+      head.appendChild(el("label", { class: "day-done" }, dayInput, el("span", {}, "Done")));
       block.appendChild(head);
       if (dayChecked) block.classList.add("done");
 
       const items = parseDayItems(bodyHtml);
+      const taskIdxs = items.filter((i) => i.type === "task").map((i) => i.idx);
+      const syncDayFromItems = () => {
+        if (!taskIdxs.length) return;
+        const allDone = taskIdxs.every((idx) => isDayItemChecked(cls.id, lesson.id, dayKey, idx));
+        if (allDone === dayInput.checked) return;
+        dayInput.checked = allDone;
+        setDayDone(cls.id, lesson.id, dayKey, allDone);
+        block.classList.toggle("done", allDone);
+        cascadeLessonComplete();
+      };
+
       if (items.length) {
         const list = el("ul", { class: "checklist day-items" });
         items.forEach((item) => {
@@ -1085,15 +1131,51 @@ function renderLesson(cls, lessonId) {
             list.appendChild(el("li", { class: "day-item-header" }, span));
             return;
           }
+          const text = el("span", { class: "text" });
+          const itemText = item.nodes.map((n) => n.textContent || "").join("");
+          for (const n of item.nodes) text.appendChild(n);
+          const copyCount = extractCopyCount(itemText);
+          if (copyCount > 0) {
+            const li = el("li", { class: "with-attempts" });
+            const attempts = el("div", { class: "copy-attempts" });
+            const boxes = [];
+            const syncComplete = (persist) => {
+              const allDone = boxes.every((b) => b.checked);
+              li.classList.toggle("complete", allDone);
+              if (persist) {
+                setDayItemChecked(cls.id, lesson.id, dayKey, item.idx, allDone);
+                syncDayFromItems();
+              }
+            };
+            for (let i = 0; i < copyCount; i++) {
+              const acb = el("input", {
+                type: "checkbox",
+                class: "attempt-cb",
+                checked: isAttemptChecked(cls.id, lesson.id, dayKey, item.idx, i),
+                title: `Copy ${i + 1} of ${copyCount}`,
+                "aria-label": `Copy ${i + 1} of ${copyCount}`,
+                onChange: (e) => {
+                  setAttemptChecked(cls.id, lesson.id, dayKey, item.idx, i, e.target.checked);
+                  syncComplete(true);
+                },
+              });
+              boxes.push(acb);
+              attempts.appendChild(acb);
+            }
+            li.appendChild(attempts);
+            li.appendChild(text);
+            syncComplete(false);
+            list.appendChild(li);
+            return;
+          }
           const cb = el("input", {
             type: "checkbox",
             checked: isDayItemChecked(cls.id, lesson.id, dayKey, item.idx),
             onChange: (e) => {
               setDayItemChecked(cls.id, lesson.id, dayKey, item.idx, e.target.checked);
+              syncDayFromItems();
             },
           });
-          const text = el("span", { class: "text" });
-          for (const n of item.nodes) text.appendChild(n);
           list.appendChild(el("li", {}, el("label", {}, cb, text)));
         });
         block.appendChild(list);
