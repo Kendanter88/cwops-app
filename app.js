@@ -1424,3 +1424,203 @@ function renderNotFound() {
   app.appendChild(el("h1", {}, "Not found"));
   app.appendChild(el("p", {}, "That page doesn't exist. ", el("a", { href: "#/" }, "Back to classes.")));
 }
+
+// ---------------------------------------------------------------------------
+// Audio player — bottom bar with ±10s, replay-N-times, and ∞ continuous loop
+// ---------------------------------------------------------------------------
+
+const PLAYER_KEY = "mpc.player.v1";
+
+function loadPlayerPrefs() {
+  try { return JSON.parse(localStorage.getItem(PLAYER_KEY) || "{}"); }
+  catch { return {}; }
+}
+function savePlayerPrefs(p) {
+  localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
+}
+
+const audioPlayer = (() => {
+  const prefs = loadPlayerPrefs();
+  let targetPlays = Math.max(1, Math.min(99, prefs.targetPlays ?? 1));
+  let infinite = !!prefs.infinite;
+  let currentPlay = 1;
+  let scrubbing = false;
+
+  const audio = new Audio();
+  audio.preload = "metadata";
+
+  const titleEl = el("div", { class: "ap-title" }, "");
+  const back10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Back 10 seconds", title: "Back 10s (←)" }, "⏪ 10");
+  const playBtn = el("button", { class: "ap-btn ap-play", type: "button", "aria-label": "Play" }, "▶");
+  const fwd10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Forward 10 seconds", title: "Forward 10s (→)" }, "10 ⏩");
+  const scrubber = el("input", { class: "ap-scrub", type: "range", min: "0", max: "1000", value: "0", step: "1", "aria-label": "Seek" });
+  const timeEl = el("div", { class: "ap-time" }, "0:00 / 0:00");
+  const countDisplay = el("span", { class: "ap-count" }, "Plays 1 / 1");
+  const downBtn = el("button", { class: "ap-btn ap-step", type: "button", "aria-label": "Fewer plays", title: "Fewer plays" }, "▼");
+  const upBtn = el("button", { class: "ap-btn ap-step", type: "button", "aria-label": "More plays", title: "More plays" }, "▲");
+  const loopBtn = el("button", { class: "ap-btn ap-loop", type: "button", "aria-pressed": "false", "aria-label": "Toggle continuous loop", title: "Continuous loop" }, "∞");
+  const closeBtn = el("button", { class: "ap-btn ap-close", type: "button", "aria-label": "Close player", title: "Close (Esc)" }, "✕");
+
+  const bar = el("div", { id: "audio-player", class: "audio-player", hidden: true, role: "region", "aria-label": "Audio player" },
+    el("div", { class: "ap-inner" },
+      titleEl,
+      el("div", { class: "ap-transport" }, back10, playBtn, fwd10),
+      el("div", { class: "ap-scrub-wrap" }, scrubber, timeEl),
+      el("div", { class: "ap-count-group" }, downBtn, countDisplay, upBtn),
+      loopBtn,
+      closeBtn,
+    ),
+  );
+  document.body.appendChild(bar);
+
+  function fmt(t) {
+    if (!isFinite(t) || t < 0) return "0:00";
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  function updateCount() {
+    if (infinite) {
+      countDisplay.textContent = "Loop ∞";
+      countDisplay.classList.add("ap-count--inf");
+      upBtn.disabled = true;
+      downBtn.disabled = true;
+    } else {
+      countDisplay.textContent = `Plays ${currentPlay} / ${targetPlays}`;
+      countDisplay.classList.remove("ap-count--inf");
+      upBtn.disabled = targetPlays >= 99;
+      downBtn.disabled = targetPlays <= 1;
+    }
+    loopBtn.setAttribute("aria-pressed", infinite ? "true" : "false");
+    loopBtn.classList.toggle("ap-loop--on", infinite);
+  }
+
+  function updateTime() {
+    const cur = audio.currentTime || 0;
+    const dur = audio.duration || 0;
+    timeEl.textContent = `${fmt(cur)} / ${fmt(dur)}`;
+    if (!scrubbing && dur > 0) {
+      scrubber.value = String(Math.round((cur / dur) * 1000));
+    }
+  }
+
+  function updatePlayBtn() {
+    const playing = !audio.paused && !audio.ended;
+    playBtn.textContent = playing ? "⏸" : "▶";
+    playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
+  }
+
+  scrubber.addEventListener("input", () => { scrubbing = true; });
+  scrubber.addEventListener("change", () => {
+    const dur = audio.duration || 0;
+    if (dur > 0) audio.currentTime = (Number(scrubber.value) / 1000) * dur;
+    scrubbing = false;
+  });
+  playBtn.addEventListener("click", () => {
+    if (audio.paused || audio.ended) audio.play().catch(() => {});
+    else audio.pause();
+  });
+  back10.addEventListener("click", () => {
+    audio.currentTime = Math.max(0, audio.currentTime - 10);
+  });
+  fwd10.addEventListener("click", () => {
+    const dur = audio.duration || 0;
+    audio.currentTime = dur > 0 ? Math.min(dur, audio.currentTime + 10) : audio.currentTime + 10;
+  });
+  upBtn.addEventListener("click", () => {
+    targetPlays = Math.min(99, targetPlays + 1);
+    savePlayerPrefs({ targetPlays, infinite });
+    updateCount();
+  });
+  downBtn.addEventListener("click", () => {
+    targetPlays = Math.max(1, targetPlays - 1);
+    if (currentPlay > targetPlays) currentPlay = targetPlays;
+    savePlayerPrefs({ targetPlays, infinite });
+    updateCount();
+  });
+  loopBtn.addEventListener("click", () => {
+    infinite = !infinite;
+    savePlayerPrefs({ targetPlays, infinite });
+    updateCount();
+  });
+  closeBtn.addEventListener("click", () => close());
+
+  audio.addEventListener("timeupdate", updateTime);
+  audio.addEventListener("loadedmetadata", updateTime);
+  audio.addEventListener("durationchange", updateTime);
+  audio.addEventListener("play", updatePlayBtn);
+  audio.addEventListener("pause", updatePlayBtn);
+  audio.addEventListener("error", () => {
+    titleEl.textContent = "⚠ Could not load audio (network or CORS).";
+  });
+  audio.addEventListener("ended", () => {
+    if (infinite) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } else if (currentPlay < targetPlays) {
+      currentPlay++;
+      updateCount();
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    } else {
+      updatePlayBtn();
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (bar.hidden) return;
+    const t = e.target;
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    if (typing && t !== scrubber) return;
+    if (e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      if (audio.paused || audio.ended) audio.play().catch(() => {});
+      else audio.pause();
+    } else if (e.key === "ArrowLeft" && t !== scrubber) {
+      e.preventDefault();
+      audio.currentTime = Math.max(0, audio.currentTime - 10);
+    } else if (e.key === "ArrowRight" && t !== scrubber) {
+      e.preventDefault();
+      const dur = audio.duration || 0;
+      audio.currentTime = dur > 0 ? Math.min(dur, audio.currentTime + 10) : audio.currentTime + 10;
+    } else if (e.key === "Escape") {
+      close();
+    }
+  });
+
+  function open(url, label) {
+    titleEl.textContent = label || url.split("/").pop();
+    titleEl.title = url;
+    currentPlay = 1;
+    if (audio.src !== url) audio.src = url;
+    else audio.currentTime = 0;
+    bar.hidden = false;
+    document.body.classList.add("has-audio-player");
+    updateCount();
+    updatePlayBtn();
+    updateTime();
+    audio.play().catch(() => {});
+  }
+  function close() {
+    audio.pause();
+    bar.hidden = true;
+    document.body.classList.remove("has-audio-player");
+  }
+
+  updateCount();
+  return { open, close };
+})();
+
+// Intercept clicks on audio chips so they open the inline player instead of a new tab.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a.tool-chip.audio");
+  if (!a) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  const url = a.getAttribute("href");
+  if (!url || !/\.mp3(\?|$)/i.test(url)) return;
+  e.preventDefault();
+  const rawTitle = a.getAttribute("title") || "";
+  const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
+  audioPlayer.open(url, niceTitle);
+});
