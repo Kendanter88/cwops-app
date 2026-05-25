@@ -1185,6 +1185,12 @@ function renderLesson(cls, lessonId) {
         block.appendChild(body);
       }
 
+      if (/\.mp3/i.test(bodyHtml)) {
+        const player = createAudioPlayer();
+        block._player = player;
+        block.appendChild(player.el);
+      }
+
       sec.appendChild(block);
     });
     app.appendChild(sec);
@@ -1404,7 +1410,7 @@ function renderNotFound() {
 }
 
 // ---------------------------------------------------------------------------
-// Audio player — bottom bar with ±10s, replay-N-times, and ∞ continuous loop
+// Audio player — one per day-block, always visible, loads audio on link click
 // ---------------------------------------------------------------------------
 
 const PLAYER_KEY = "mpc.player.v1";
@@ -1419,9 +1425,9 @@ function savePlayerPrefs(p) {
 
 const WORD_NUMS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 function extractAssignmentCount(chipEl) {
-  const p = chipEl?.closest("p");
-  if (!p) return null;
-  const text = p.textContent.toLowerCase();
+  const container = chipEl?.closest("li, p");
+  if (!container) return null;
+  const text = container.textContent.toLowerCase();
   const digit = text.match(/(\d+)\s+times?\b/);
   if (digit) {
     const n = parseInt(digit[1], 10);
@@ -1432,36 +1438,44 @@ function extractAssignmentCount(chipEl) {
   return null;
 }
 
-const audioPlayer = (() => {
+// Pause any audio playing on this page when the route changes (SPA navigation
+// removes the player from the DOM but doesn't stop audio that's already playing).
+const livePlayerAudios = new Set();
+window.addEventListener("hashchange", () => {
+  for (const a of livePlayerAudios) a.pause();
+  livePlayerAudios.clear();
+});
+
+function createAudioPlayer() {
   const prefs = loadPlayerPrefs();
   let targetPlays = 1;
   let infinite = !!prefs.infinite;
   let currentPlay = 1;
   let scrubbing = false;
+  let loaded = false;
 
   const audio = new Audio();
   audio.preload = "metadata";
+  livePlayerAudios.add(audio);
 
-  const titleEl = el("div", { class: "ap-title" }, "");
-  const back10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Back 10 seconds", title: "Back 10s (←)" }, "⏪ 10");
-  const playBtn = el("button", { class: "ap-btn ap-play", type: "button", "aria-label": "Play" }, "▶");
-  const fwd10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Forward 10 seconds", title: "Forward 10s (→)" }, "10 ⏩");
-  const scrubber = el("input", { class: "ap-scrub", type: "range", min: "0", max: "1000", value: "0", step: "1", "aria-label": "Seek" });
+  const titleEl = el("div", { class: "ap-title" }, "Click an audio link above to load");
+  const back10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Back 10 seconds", title: "Back 10s" }, "⏪ 10");
+  const playBtn = el("button", { class: "ap-btn ap-play", type: "button", "aria-label": "Play", disabled: true }, "▶");
+  const fwd10 = el("button", { class: "ap-btn", type: "button", "aria-label": "Forward 10 seconds", title: "Forward 10s" }, "10 ⏩");
+  const scrubber = el("input", { class: "ap-scrub", type: "range", min: "0", max: "1000", value: "0", step: "1", "aria-label": "Seek", disabled: true });
   const timeEl = el("div", { class: "ap-time" }, "0:00 / 0:00");
   const countDisplay = el("span", { class: "ap-count" }, "Plays 1 / 1");
   const downBtn = el("button", { class: "ap-btn ap-step", type: "button", "aria-label": "Fewer plays", title: "Fewer plays" }, "▼");
   const upBtn = el("button", { class: "ap-btn ap-step", type: "button", "aria-label": "More plays", title: "More plays" }, "▲");
   const loopBtn = el("button", { class: "ap-btn ap-loop", type: "button", "aria-pressed": "false", "aria-label": "Toggle continuous loop", title: "Continuous loop" }, "∞");
-  const closeBtn = el("button", { class: "ap-btn ap-close", type: "button", "aria-label": "Close player", title: "Close (Esc)" }, "✕");
 
-  const bar = el("div", { id: "audio-player", class: "audio-player", hidden: true, role: "region", "aria-label": "Audio player" },
+  const bar = el("div", { class: "audio-player audio-player--idle", role: "region", "aria-label": "Audio player" },
     el("div", { class: "ap-inner" },
       titleEl,
       el("div", { class: "ap-transport" }, back10, playBtn, fwd10),
       el("div", { class: "ap-scrub-wrap" }, scrubber, timeEl),
       el("div", { class: "ap-count-group" }, downBtn, countDisplay, upBtn),
       loopBtn,
-      closeBtn,
     ),
   );
 
@@ -1481,8 +1495,8 @@ const audioPlayer = (() => {
     } else {
       countDisplay.textContent = `Plays ${currentPlay} / ${targetPlays}`;
       countDisplay.classList.remove("ap-count--inf");
-      upBtn.disabled = targetPlays >= 99;
-      downBtn.disabled = targetPlays <= 1;
+      upBtn.disabled = !loaded || targetPlays >= 99;
+      downBtn.disabled = !loaded || targetPlays <= 1;
     }
     loopBtn.setAttribute("aria-pressed", infinite ? "true" : "false");
     loopBtn.classList.toggle("ap-loop--on", infinite);
@@ -1510,13 +1524,16 @@ const audioPlayer = (() => {
     scrubbing = false;
   });
   playBtn.addEventListener("click", () => {
+    if (!loaded) return;
     if (audio.paused || audio.ended) audio.play().catch(() => {});
     else audio.pause();
   });
   back10.addEventListener("click", () => {
+    if (!loaded) return;
     audio.currentTime = Math.max(0, audio.currentTime - 10);
   });
   fwd10.addEventListener("click", () => {
+    if (!loaded) return;
     const dur = audio.duration || 0;
     audio.currentTime = dur > 0 ? Math.min(dur, audio.currentTime + 10) : audio.currentTime + 10;
   });
@@ -1534,7 +1551,6 @@ const audioPlayer = (() => {
     savePlayerPrefs({ infinite });
     updateCount();
   });
-  closeBtn.addEventListener("click", () => close());
 
   audio.addEventListener("timeupdate", updateTime);
   audio.addEventListener("loadedmetadata", updateTime);
@@ -1558,66 +1574,38 @@ const audioPlayer = (() => {
     }
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (bar.hidden) return;
-    const t = e.target;
-    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-    if (typing && t !== scrubber) return;
-    if (e.key === " " || e.key === "Spacebar") {
-      e.preventDefault();
-      if (audio.paused || audio.ended) audio.play().catch(() => {});
-      else audio.pause();
-    } else if (e.key === "ArrowLeft" && t !== scrubber) {
-      e.preventDefault();
-      audio.currentTime = Math.max(0, audio.currentTime - 10);
-    } else if (e.key === "ArrowRight" && t !== scrubber) {
-      e.preventDefault();
-      const dur = audio.duration || 0;
-      audio.currentTime = dur > 0 ? Math.min(dur, audio.currentTime + 10) : audio.currentTime + 10;
-    } else if (e.key === "Escape") {
-      close();
-    }
-  });
-
-  function open(url, label, chipEl) {
+  function load(url, label, chipEl) {
     titleEl.textContent = label || url.split("/").pop();
     titleEl.title = url;
     currentPlay = 1;
     targetPlays = extractAssignmentCount(chipEl) ?? 1;
+    loaded = true;
+    bar.classList.remove("audio-player--idle");
+    playBtn.disabled = false;
+    scrubber.disabled = false;
     if (audio.src !== url) audio.src = url;
     else audio.currentTime = 0;
-    if (chipEl) {
-      const anchor = chipEl.closest("p, li.extras-item, .tool-strip") || chipEl.parentElement;
-      if (anchor?.parentNode) {
-        anchor.parentNode.insertBefore(bar, anchor.nextSibling);
-      }
-    }
-    bar.hidden = false;
     updateCount();
     updatePlayBtn();
     updateTime();
     audio.play().catch(() => {});
   }
-  function close() {
-    audio.pause();
-    bar.hidden = true;
-    if (bar.parentNode) bar.parentNode.removeChild(bar);
-  }
-  window.addEventListener("hashchange", close);
 
   updateCount();
-  return { open, close };
-})();
+  return { el: bar, load, _audio: audio };
+}
 
-// Intercept clicks on audio links so they open the inline player instead of a new tab.
+// Intercept clicks on day-block audio links: load into the day's player.
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a.audio");
   if (!a) return;
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
   const url = a.getAttribute("href");
   if (!url || !/\.mp3(\?|$)/i.test(url)) return;
+  const dayBlock = a.closest(".day-block");
+  if (!dayBlock?._player) return;
   e.preventDefault();
   const rawTitle = a.getAttribute("title") || "";
   const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
-  audioPlayer.open(url, niceTitle, a);
+  dayBlock._player.load(url, niceTitle, a);
 });

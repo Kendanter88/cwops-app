@@ -816,17 +816,22 @@ textarea.hw-input {
 }
 
 /* ---------------------------------------------------------- */
-/* Audio player (inline, appears below the clicked chip)      */
+/* Audio player (one per day-block, always visible)           */
 /* ---------------------------------------------------------- */
 .audio-player {
   background: var(--bg-2);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   padding: 0.6rem 0.75rem;
-  margin: 0.5rem 0 0.25rem;
+  margin: 1rem 0 0.25rem;
   box-shadow: 0 2px 8px #0003;
 }
 .audio-player[hidden] { display: none; }
+.audio-player--idle {
+  border-color: var(--border);
+  box-shadow: none;
+}
+.audio-player--idle .ap-title { font-style: italic; color: var(--fg-mute); }
 .ap-inner {
   display: flex;
   flex-wrap: wrap;
