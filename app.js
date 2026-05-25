@@ -1185,28 +1185,6 @@ function renderLesson(cls, lessonId) {
         block.appendChild(body);
       }
 
-      if (tools?.length) {
-        const toolList = el("ul", { class: "tool-strip" });
-        tools.forEach((t) => {
-          const isAudio = /\.mp3$/i.test(t.url);
-          const isInternal = t.url.startsWith("#/");
-          toolList.appendChild(el("li", {},
-            el("a", {
-              class: `tool-chip${isAudio ? " audio" : ""}`,
-              href: t.url,
-              target: isInternal ? null : "_blank",
-              rel: isInternal ? null : "noopener",
-              title: t.url,
-            }, t.name, isAudio ? " ▶" : isInternal ? "" : " ↗")
-          ));
-        });
-        const wrap = el("details", { class: "tool-wrap" },
-          el("summary", {}, `Quick links · ${tools.length}`),
-          toolList,
-        );
-        block.appendChild(wrap);
-      }
-
       sec.appendChild(block);
     });
     app.appendChild(sec);
@@ -1439,9 +1417,24 @@ function savePlayerPrefs(p) {
   localStorage.setItem(PLAYER_KEY, JSON.stringify(p));
 }
 
+const WORD_NUMS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+function extractAssignmentCount(chipEl) {
+  const p = chipEl?.closest("p");
+  if (!p) return null;
+  const text = p.textContent.toLowerCase();
+  const digit = text.match(/(\d+)\s+times?\b/);
+  if (digit) {
+    const n = parseInt(digit[1], 10);
+    if (n >= 1 && n <= 99) return n;
+  }
+  const word = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/);
+  if (word) return WORD_NUMS[word[1]];
+  return null;
+}
+
 const audioPlayer = (() => {
   const prefs = loadPlayerPrefs();
-  let targetPlays = Math.max(1, Math.min(99, prefs.targetPlays ?? 1));
+  let targetPlays = 1;
   let infinite = !!prefs.infinite;
   let currentPlay = 1;
   let scrubbing = false;
@@ -1471,7 +1464,6 @@ const audioPlayer = (() => {
       closeBtn,
     ),
   );
-  document.body.appendChild(bar);
 
   function fmt(t) {
     if (!isFinite(t) || t < 0) return "0:00";
@@ -1530,18 +1522,16 @@ const audioPlayer = (() => {
   });
   upBtn.addEventListener("click", () => {
     targetPlays = Math.min(99, targetPlays + 1);
-    savePlayerPrefs({ targetPlays, infinite });
     updateCount();
   });
   downBtn.addEventListener("click", () => {
     targetPlays = Math.max(1, targetPlays - 1);
     if (currentPlay > targetPlays) currentPlay = targetPlays;
-    savePlayerPrefs({ targetPlays, infinite });
     updateCount();
   });
   loopBtn.addEventListener("click", () => {
     infinite = !infinite;
-    savePlayerPrefs({ targetPlays, infinite });
+    savePlayerPrefs({ infinite });
     updateCount();
   });
   closeBtn.addEventListener("click", () => close());
@@ -1589,14 +1579,20 @@ const audioPlayer = (() => {
     }
   });
 
-  function open(url, label) {
+  function open(url, label, chipEl) {
     titleEl.textContent = label || url.split("/").pop();
     titleEl.title = url;
     currentPlay = 1;
+    targetPlays = extractAssignmentCount(chipEl) ?? 1;
     if (audio.src !== url) audio.src = url;
     else audio.currentTime = 0;
+    if (chipEl) {
+      const anchor = chipEl.closest("p, li.extras-item, .tool-strip") || chipEl.parentElement;
+      if (anchor?.parentNode) {
+        anchor.parentNode.insertBefore(bar, anchor.nextSibling);
+      }
+    }
     bar.hidden = false;
-    document.body.classList.add("has-audio-player");
     updateCount();
     updatePlayBtn();
     updateTime();
@@ -1605,16 +1601,17 @@ const audioPlayer = (() => {
   function close() {
     audio.pause();
     bar.hidden = true;
-    document.body.classList.remove("has-audio-player");
+    if (bar.parentNode) bar.parentNode.removeChild(bar);
   }
+  window.addEventListener("hashchange", close);
 
   updateCount();
   return { open, close };
 })();
 
-// Intercept clicks on audio chips so they open the inline player instead of a new tab.
+// Intercept clicks on audio links so they open the inline player instead of a new tab.
 document.addEventListener("click", (e) => {
-  const a = e.target.closest("a.tool-chip.audio");
+  const a = e.target.closest("a.audio");
   if (!a) return;
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
   const url = a.getAttribute("href");
@@ -1622,5 +1619,5 @@ document.addEventListener("click", (e) => {
   e.preventDefault();
   const rawTitle = a.getAttribute("title") || "";
   const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
-  audioPlayer.open(url, niceTitle);
+  audioPlayer.open(url, niceTitle, a);
 });
