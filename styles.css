@@ -816,16 +816,15 @@ textarea.hw-input {
 }
 
 /* ---------------------------------------------------------- */
-/* Audio player (bottom bar)                                  */
+/* Audio player (inline, appears below the clicked chip)      */
 /* ---------------------------------------------------------- */
 .audio-player {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
   background: var(--bg-2);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -6px 24px #00000055;
-  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
-  z-index: 50;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  margin: 0.5rem 0 0.25rem;
+  box-shadow: 0 2px 8px #0003;
 }
 .audio-player[hidden] { display: none; }
 .ap-inner {
@@ -833,8 +832,6 @@ textarea.hw-input {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  max-width: var(--maxw);
-  margin: 0 auto;
 }
 .ap-title {
   flex: 1 1 100%;
@@ -919,8 +916,6 @@ textarea.hw-input {
   color: var(--accent-fg);
   filter: brightness(1.08);
 }
-body.has-audio-player { padding-bottom: 8rem; }
 @media (max-width: 640px) {
   .ap-scrub-wrap { order: 3; flex: 1 1 100%; }
-  body.has-audio-player { padding-bottom: 11rem; }
 }
