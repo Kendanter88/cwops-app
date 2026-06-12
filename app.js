@@ -297,31 +297,41 @@ function rewriteGuideLinks(html, baseCtx) {
   return tmp.innerHTML;
 }
 
-// Returns Date objects keyed [lessonIdx][dayIdx]. Anchors each lesson's last
-// day on a class meeting (Mon or Thu) and counts backward for the earlier
-// days, skipping Sunday. `firstClassDateStr` is the date of Lesson 1's last
-// day (the first class meeting). Lessons may share a calendar day at the
-// seam (L(N) last day === L(N+1) first day) — that's expected.
+// Returns Date objects keyed [lessonIdx][dayIdx]. `firstClassDateStr` is the
+// date of Lesson 1's last day — the first class meeting — which anchors the
+// whole sequence. Every other day-slot (L1D1, L1D2, L1D3, L2D1, …) is just the
+// next calendar day, skipping Sundays. Six day-slots fill one Mon–Sat week, so
+// this reproduces the twice-weekly class rhythm for ANY starting weekday
+// (Mon/Thu, Tue/Fri, Wed/Sat, …) — we never assume which two days class meets.
 function computeLessonDates(firstClassDateStr, lessons) {
   if (!firstClassDateStr || !lessons?.length) return null;
   const [y, m, d] = firstClassDateStr.split("-").map(Number);
-  const classDay = new Date(y, m - 1, d);
-  const out = [];
-  for (const lesson of lessons) {
-    const dayCount = lesson.days?.length || 0;
-    const days = new Array(dayCount);
-    if (dayCount >= 1) days[dayCount - 1] = new Date(classDay);
-    const cursor = new Date(classDay);
-    for (let i = dayCount - 2; i >= 0; i--) {
-      cursor.setDate(cursor.getDate() - 1);
-      if (cursor.getDay() === 0) cursor.setDate(cursor.getDate() - 1);
-      days[i] = new Date(cursor);
-    }
-    out.push(days);
-    // Advance to next class day: Mon (1) → Thu (+3); Thu (4) → next Mon (+4).
-    const dow = classDay.getDay();
-    classDay.setDate(classDay.getDate() + (dow === 1 ? 3 : dow === 4 ? 4 : 1));
+
+  const slots = [];
+  lessons.forEach((lesson, li) => {
+    const n = lesson.days?.length || 0;
+    for (let di = 0; di < n; di++) slots.push({ li, di });
+  });
+  const anchorIdx = (lessons[0].days?.length || 1) - 1; // L1's last day
+  const dates = new Array(slots.length);
+  const anchor = new Date(y, m - 1, d);
+  dates[anchorIdx] = new Date(anchor);
+
+  const cursor = new Date(anchor);
+  for (let i = anchorIdx + 1; i < slots.length; i++) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (cursor.getDay() === 0) cursor.setDate(cursor.getDate() + 1); // skip Sunday
+    dates[i] = new Date(cursor);
   }
+  cursor.setTime(anchor.getTime());
+  for (let i = anchorIdx - 1; i >= 0; i--) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (cursor.getDay() === 0) cursor.setDate(cursor.getDate() - 1); // skip Sunday
+    dates[i] = new Date(cursor);
+  }
+
+  const out = lessons.map((lesson) => new Array(lesson.days?.length || 0));
+  slots.forEach((s, i) => { out[s.li][s.di] = dates[i]; });
   return out;
 }
 
@@ -916,7 +926,7 @@ function renderDateGear(cls) {
     el("button", { class: "btn ghost", onClick: () => { setUserFirstClassDate(cls.id, null); render(); } }, "Clear"),
   );
   panel.appendChild(el("label", { style: "display:block; font-size:.9rem; margin-bottom:.35rem" },
-    "First class meeting — Lesson 1, Day 3 (pick a Monday or Thursday):"));
+    "Date of your first class — Lesson 1, Day 3. Every other day fills in from there."));
   panel.appendChild(input);
   panel.appendChild(actions);
   panel.appendChild(status);
