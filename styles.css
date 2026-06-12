@@ -769,8 +769,8 @@ textarea.hw-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.95rem;
   line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;       /* preserve column alignment (prosign row) */
+  overflow-x: auto;       /* scroll instead of wrapping on narrow screens */
   letter-spacing: 0.02em;
 }
 

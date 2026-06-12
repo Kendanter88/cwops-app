@@ -27,15 +27,27 @@ sssss  ttttt  uuuuu  vvvvv   wwwww   xxxxx   yyyyy   zzzzz
 
 11111  22222  33333  44444  55555  66666  77777  88888  99999  00000`;
 
+// Punctuation drill: seven 5-char groups separated by 4 spaces, with prosigns
+// aligned under specific groups — <DN> under /, <sk> under *, <ar> under +,
+// <BT> under =. Built by column math so the two rows stay aligned.
+const SC_PUNCT = ["/", ",", ".", "?", "*", "+", "="];
+const SC_DRILL_SYMBOLS = SC_PUNCT.map((c) => `${c} ${c} ${c} ${c} ${c}`).join("    ");
+const SC_DRILL_PROSIGNS = (() => {
+  const stride = 9 + 4; // 9-char group + 4-space separator
+  const marks = { 0: "<DN>", 4: "<sk>", 5: "<ar>", 6: "<BT>" };
+  let line = "";
+  for (const gi of Object.keys(marks)) line = line.padEnd(Number(gi) * stride) + marks[gi];
+  return line;
+})();
 const SC_DRILL = `the quick brown fox jumpED over the lazy dogs back   7 0 3 6 4 5 1 2 8 9
 
 the quick brown fox jumpED over the lazy dogs back   7 0 3 6 4 5 1 2 8 9
 
 BENS BEST BENT WIRE/5      BENS BEST BENT WIRE/5      BENS BEST BENT WIRE/5
 
-/ / / / /        , , , , ,       . . . . .         ? ? ? ? ?       * * * * *         + + + + +        = = = = =
+${SC_DRILL_SYMBOLS}
 
-  <DN>                                                                      <sk>               <ar>             <BT>`;
+${SC_DRILL_PROSIGNS}`;
 
 const SCALES_SOURCE = "https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm";
 
