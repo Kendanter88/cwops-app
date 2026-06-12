@@ -6,7 +6,8 @@
 // Day 3 is the next class day (Mon→Thu = +3, Thu→Mon = +4). Day 2 is the day
 // before Day 3; Day 1 is the day before that, skipping Sunday if it lands on
 // one. Lessons may share a day (e.g. L1 D3 = L2 D1 on the same Mon) — that's
-// expected: class meets, then the next lesson's prep begins.
+// expected: class meets, then the next lesson's prep begins. It can also be
+// set per-browser from the class page's date gear (see app.js getFirstClassDate).
 export const classes = [
   {
     id: "cwops-intermediate",
@@ -16,6 +17,14 @@ export const classes = [
     status: "ready",
     firstClassDate: "2026-05-04",
     loader: () => import("./cwops-intermediate.js"),
+  },
+  {
+    id: "cwops-advanced-proto",
+    shortName: "CWA Advanced",
+    subtitle: "16 sessions · 20→35 WPM",
+    blurb: "CW Academy's Advanced curriculum (prototype). Head-copy speed building from 20 to 35 WPM with a daily long-form short-story assignment.",
+    status: "ready",
+    loader: () => import("./cwops-advanced-proto.js"),
   },
 ];
 

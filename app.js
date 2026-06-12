@@ -116,10 +116,17 @@ function setAttemptChecked(classId, lessonId, dayKey, itemIdx, attemptIdx, value
 // up to ten — covers every count used in the CWA Intermediate source.
 const COPY_WORD_NUMBERS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 function extractCopyCount(text) {
-  const m = /\bat\s+least\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.exec(text || "");
-  if (!m) return 0;
-  const tok = m[1].toLowerCase();
-  return Number(tok) || COPY_WORD_NUMBERS[tok] || 0;
+  const t = text || "";
+  const m = /\bat\s+least\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.exec(t);
+  if (m) {
+    const tok = m[1].toLowerCase();
+    return Number(tok) || COPY_WORD_NUMBERS[tok] || 0;
+  }
+  // Streamlined courses write the rep count as "×2" / "x3" (1 rep stays a plain
+  // checkbox; 2+ becomes that many "copy" attempt boxes).
+  const x = /(?:×|\bx)\s*(\d+)\b/i.exec(t);
+  if (x && Number(x[1]) >= 2) return Number(x[1]);
+  return 0;
 }
 
 function isLessonComplete(classId, lessonId) {
@@ -323,6 +330,23 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function formatDayDate(date) {
   if (!date) return "";
   return `${DOW[date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// Per-browser override of a class's first-class date, set from the date gear on
+// the class page. Falls back to the registry's firstClassDate, else null (blank
+// dates). Stored separately from lesson progress.
+const FIRST_DATE_KEY = "mpc.firstClassDate.v1";
+function loadFirstDates() {
+  try { return JSON.parse(localStorage.getItem(FIRST_DATE_KEY)) || {}; } catch { return {}; }
+}
+function getFirstClassDate(cls) {
+  return loadFirstDates()[cls.id] || cls.firstClassDate || null;
+}
+function setUserFirstClassDate(classId, dateStr) {
+  const all = loadFirstDates();
+  if (dateStr) all[classId] = dateStr;
+  else delete all[classId];
+  localStorage.setItem(FIRST_DATE_KEY, JSON.stringify(all));
 }
 
 const SUBMIT_HW_URL = "https://docs.google.com/forms/d/e/1FAIpQLScVofUQMR3P8G2Ayom5iEspPMsCRe51CdaNkF6Vc-WGk-WniA/viewform";
@@ -871,6 +895,41 @@ function renderExtrasPage() {
   }
 }
 
+// Gear control on the class page: set/clear the per-browser first-class date
+// that anchors every day's date label. Renders a button + a dropdown panel.
+function renderDateGear(cls) {
+  const wrap = el("div", { class: "date-gear", style: "position:relative; display:inline-block" });
+  const override = loadFirstDates()[cls.id] || "";
+  const effective = getFirstClassDate(cls);
+  const btn = el("button", { class: "btn ghost", "aria-expanded": "false", title: "Set the first class date" },
+    effective ? `⚙ Dates · ${effective}` : "⚙ Set dates");
+  const panel = el("div", {
+    class: "callout",
+    hidden: true,
+    style: "position:absolute; top:100%; left:0; z-index:20; margin-top:.4rem; min-width:18rem; text-align:left",
+  });
+  const input = el("input", { type: "date", value: override });
+  const status = el("p", { class: "muted", style: "margin:.5rem 0 0; font-size:.82rem" },
+    effective ? `Day dates count back from this first class meeting.` : "No date set — day dates stay blank.");
+  const actions = el("div", { class: "button-row", style: "margin-top:.5rem" },
+    el("button", { class: "btn", onClick: () => { setUserFirstClassDate(cls.id, input.value || null); render(); } }, "Save"),
+    el("button", { class: "btn ghost", onClick: () => { setUserFirstClassDate(cls.id, null); render(); } }, "Clear"),
+  );
+  panel.appendChild(el("label", { style: "display:block; font-size:.9rem; margin-bottom:.35rem" },
+    "First class meeting — Lesson 1, Day 3 (pick a Monday or Thursday):"));
+  panel.appendChild(input);
+  panel.appendChild(actions);
+  panel.appendChild(status);
+  btn.addEventListener("click", () => {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  wrap.appendChild(btn);
+  wrap.appendChild(panel);
+  return wrap;
+}
+
 function renderClass(cls) {
   clear(app);
   app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: cls.shortName }]));
@@ -889,6 +948,7 @@ function renderClass(cls) {
   if (cls.source?.referenceUrl) {
     buttons.appendChild(el("a", { class: "btn ghost", href: cls.source.referenceUrl, target: "_blank", rel: "noopener" }, "Reference materials ↗"));
   }
+  buttons.appendChild(renderDateGear(cls));
   app.appendChild(buttons);
 
   app.appendChild(el("h2", { class: "section" }, "Lessons"));
@@ -1066,7 +1126,7 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
-  const allDates = computeLessonDates(cls.firstClassDate, cls.lessons);
+  const allDates = computeLessonDates(getFirstClassDate(cls), cls.lessons);
   const lessonIdx = cls.lessons.indexOf(lesson);
   const dayDates = allDates && lessonIdx >= 0 ? allDates[lessonIdx] : null;
 
@@ -1435,6 +1495,12 @@ function extractAssignmentCount(chipEl) {
   }
   const word = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/);
   if (word) return WORD_NUMS[word[1]];
+  // Streamlined courses write the rep count as "×2" / "x3".
+  const x = text.match(/(?:×|\bx)\s*(\d+)\b/);
+  if (x) {
+    const n = parseInt(x[1], 10);
+    if (n >= 1 && n <= 99) return n;
+  }
   return null;
 }
 
@@ -1453,6 +1519,7 @@ function createAudioPlayer() {
   let currentPlay = 1;
   let scrubbing = false;
   let loaded = false;
+  let currentChip = null; // the exercise link currently loaded, for auto-check
 
   const audio = new Audio();
   audio.preload = "metadata";
@@ -1561,6 +1628,8 @@ function createAudioPlayer() {
     titleEl.textContent = "⚠ Could not load audio (network or CORS).";
   });
   audio.addEventListener("ended", () => {
+    // A completed play-through ticks the exercise's next unchecked box.
+    if (currentChip) autoCheckPlayed(currentChip);
     if (infinite) {
       audio.currentTime = 0;
       audio.play().catch(() => {});
@@ -1577,6 +1646,7 @@ function createAudioPlayer() {
   function load(url, label, chipEl) {
     titleEl.textContent = label || url.split("/").pop();
     titleEl.title = url;
+    currentChip = chipEl || null;
     currentPlay = 1;
     targetPlays = extractAssignmentCount(chipEl) ?? 1;
     loaded = true;
@@ -1609,3 +1679,20 @@ document.addEventListener("click", (e) => {
   const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
   dayBlock._player.load(url, niceTitle, a);
 });
+
+// Called when an exercise's audio finishes a play-through: ticks its checkbox —
+// or the next unchecked "copy" attempt box, so an "×2" task completes after its
+// second play. The box can still be toggled manually. Dispatching the change
+// event reuses the existing persistence + day/lesson cascade handlers.
+function autoCheckPlayed(a) {
+  const li = a.closest("li");
+  if (!li) return;
+  const attempts = li.querySelectorAll("input.attempt-cb");
+  const target = attempts.length
+    ? [...attempts].find((b) => !b.checked)
+    : li.querySelector('input[type="checkbox"]');
+  if (target && !target.checked) {
+    target.checked = true;
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
