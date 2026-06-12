@@ -1303,7 +1303,7 @@ export default {
       days: [
         {
           label: "Day 1",
-          bodyHtml: "<p>Complete the sending 'Warm Up' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/WD404_20.mp3\" target=\"_blank\" rel=\"noopener\">WD404-20</a> at least two times. Try to learn the words.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/PR404_20.mp3\" target=\"_blank\" rel=\"noopener\">PR404-20</a> at least three times. Try to learn the words.</p>\n<p>CWT practice CWT 209-20. Try to capture his call, his name, his number. Listen multiple times.</p>",
+          bodyHtml: "<p>Complete the sending 'Warm Up' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/WD404_20.mp3\" target=\"_blank\" rel=\"noopener\">WD404-20</a> at least two times. Try to learn the words.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/PR404_20.mp3\" target=\"_blank\" rel=\"noopener\">PR404-20</a> at least three times. Try to learn the words.</p>\n<p>CWT practice <a class=\"audio\" href=\"https://cwops.org/wp-content/uploads/2018/12/CWT-209-25.mp3\" target=\"_blank\" rel=\"noopener\">CWT 209-25</a>. Try to capture his call, his name, his number. Listen multiple times.</p>",
           tools: [
             {
               name: "Scales",
@@ -1320,6 +1320,10 @@ export default {
             {
               name: "PR404-20",
               url: "https://cwa.cwops.org/wp-content/uploads/PR404_20.mp3",
+            },
+            {
+              name: "CWT 209-25",
+              url: "https://cwops.org/wp-content/uploads/2018/12/CWT-209-25.mp3",
             },
           ],
         },
@@ -1389,7 +1393,7 @@ export default {
       days: [
         {
           label: "Day 1",
-          bodyHtml: "<p>Complete the sending 'Warm Up' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/WD405_25.mp3\" target=\"_blank\" rel=\"noopener\">WD405-25</a> at least two times. Try to learn the words.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/PR405_25.mp3\" target=\"_blank\" rel=\"noopener\">PR405-25</a> at least three times. Try to learn the words.</p>\n<p>Morse Runner: using single-call mode, do 15 minutes with starting speed of 25 wpm.</p>\n<p>CWT practice CWT 213-25. Try to capture his call, his name, his number. Listen multiple times.</p>",
+          bodyHtml: "<p>Complete the sending 'Warm Up' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/WD405_25.mp3\" target=\"_blank\" rel=\"noopener\">WD405-25</a> at least two times. Try to learn the words.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/PR405_25.mp3\" target=\"_blank\" rel=\"noopener\">PR405-25</a> at least three times. Try to learn the words.</p>\n<p>Morse Runner: using single-call mode, do 15 minutes with starting speed of 25 wpm.</p>\n<p>CWT practice <a class=\"audio\" href=\"https://cwops.org/wp-content/uploads/2018/12/CWT-213-30.mp3\" target=\"_blank\" rel=\"noopener\">CWT 213-30</a>. Try to capture his call, his name, his number. Listen multiple times.</p>",
           tools: [
             {
               name: "Scales",
@@ -1406,6 +1410,10 @@ export default {
             {
               name: "PR405-25",
               url: "https://cwa.cwops.org/wp-content/uploads/PR405_25.mp3",
+            },
+            {
+              name: "CWT 213-30",
+              url: "https://cwops.org/wp-content/uploads/2018/12/CWT-213-30.mp3",
             },
           ],
         },
