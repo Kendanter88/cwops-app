@@ -6,7 +6,7 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass } from "./data/classes.js";
+import { classes, loadClass, findFamily } from "./data/classes.js";
 import { extras } from "./data/extras.js";
 import { guides } from "./data/guides.js";
 
@@ -116,10 +116,17 @@ function setAttemptChecked(classId, lessonId, dayKey, itemIdx, attemptIdx, value
 // up to ten — covers every count used in the CWA Intermediate source.
 const COPY_WORD_NUMBERS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 function extractCopyCount(text) {
-  const m = /\bat\s+least\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.exec(text || "");
-  if (!m) return 0;
-  const tok = m[1].toLowerCase();
-  return Number(tok) || COPY_WORD_NUMBERS[tok] || 0;
+  const t = text || "";
+  const m = /\bat\s+least\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.exec(t);
+  if (m) {
+    const tok = m[1].toLowerCase();
+    return Number(tok) || COPY_WORD_NUMBERS[tok] || 0;
+  }
+  // Streamlined courses write the rep count as "×2" / "x3" (1 rep stays a plain
+  // checkbox; 2+ becomes that many "copy" attempt boxes).
+  const x = /(?:×|\bx)\s*(\d+)\b/i.exec(t);
+  if (x && Number(x[1]) >= 2) return Number(x[1]);
+  return 0;
 }
 
 function isLessonComplete(classId, lessonId) {
@@ -323,6 +330,23 @@ const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function formatDayDate(date) {
   if (!date) return "";
   return `${DOW[date.getDay()]} ${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// Per-browser override of a class's first-class date, set from the date gear on
+// the class page. Falls back to the registry's firstClassDate, else null (blank
+// dates). Stored separately from lesson progress.
+const FIRST_DATE_KEY = "mpc.firstClassDate.v1";
+function loadFirstDates() {
+  try { return JSON.parse(localStorage.getItem(FIRST_DATE_KEY)) || {}; } catch { return {}; }
+}
+function getFirstClassDate(cls) {
+  return loadFirstDates()[cls.id] || cls.firstClassDate || null;
+}
+function setUserFirstClassDate(classId, dateStr) {
+  const all = loadFirstDates();
+  if (dateStr) all[classId] = dateStr;
+  else delete all[classId];
+  localStorage.setItem(FIRST_DATE_KEY, JSON.stringify(all));
 }
 
 const SUBMIT_HW_URL = "https://docs.google.com/forms/d/e/1FAIpQLScVofUQMR3P8G2Ayom5iEspPMsCRe51CdaNkF6Vc-WGk-WniA/viewform";
@@ -713,6 +737,7 @@ function parseHash() {
   if (parts.length === 0) return { route: "home" };
   if (parts[0] === "extras") return { route: "extras" };
   if (parts[0] === "g" && parts[1]) return { route: "guide", slug: parts[1], params };
+  if (parts[0] === "v" && parts[1]) return { route: "versions", familyId: parts[1] };
   if (parts[0] === "c" && parts[1]) {
     const classId = parts[1];
     if (parts[2] === "intro") return { route: "intro", classId };
@@ -733,6 +758,7 @@ async function render() {
     if (r.route === "home") return renderHome();
     if (r.route === "extras") return renderExtrasPage();
     if (r.route === "guide") return renderGuide(r.slug, r.params);
+    if (r.route === "versions") return renderVersionPicker(r.familyId);
     const cls = await loadClass(r.classId);
     if (!cls) return renderNotFound();
     if (r.route === "class") return renderClass(cls);
@@ -780,13 +806,15 @@ function renderHome() {
 
   const last = getLast();
   if (last) {
-    const cls = classes.find((c) => c.id === last.classId);
+    const fam = findFamily(last.classId);
+    const cls = classes.find((c) => c.id === last.classId) || fam?.versions?.find((v) => v.id === last.classId);
     if (cls) {
+      const name = fam ? `${fam.shortName} (${cls.label})` : cls.shortName;
       app.appendChild(
         el("div", { class: "callout section" },
           el("strong", {}, "Resume: "),
-          el("a", { href: `#/c/${cls.id}/lesson/${last.lessonId}` },
-            `${cls.shortName} · Lesson ${last.lessonId}`
+          el("a", { href: `#/c/${last.classId}/lesson/${last.lessonId}` },
+            `${name} · Lesson ${last.lessonId}`
           )
         )
       );
@@ -795,10 +823,18 @@ function renderHome() {
 
   const grid = el("div", { class: "grid" });
   for (const c of classes) {
-    const card = el("a", { class: "card", href: `#/c/${c.id}` });
+    // A version family routes to its picker; a single course goes straight in.
+    const href = c.versions ? `#/v/${c.id}` : `#/c/${c.id}`;
+    const card = el("a", { class: "card", href });
     card.appendChild(el("h2", {}, c.shortName));
     card.appendChild(el("div", { class: "meta" }, c.subtitle));
     card.appendChild(el("p", {}, c.blurb));
+    if (c.versions) {
+      const ready = c.versions.filter((v) => v.status === "ready").length;
+      card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
+        el("span", { class: "tag" }, `${c.versions.length} versions · ${ready} ready`)
+      ));
+    }
     if (c.status === "stub") {
       card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
         el("span", { class: "tag muted" }, "In progress")
@@ -817,6 +853,30 @@ function renderHome() {
     grid.appendChild(card);
   }
 
+  app.appendChild(grid);
+}
+
+function renderVersionPicker(familyId) {
+  clear(app);
+  const family = findFamily(familyId);
+  if (!family) return renderNotFound();
+  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: family.shortName }]));
+  app.appendChild(el("h1", {}, family.shortName));
+  app.appendChild(el("p", { class: "subtitle" }, "Choose a curriculum version."));
+
+  const grid = el("div", { class: "grid" });
+  for (const v of family.versions) {
+    const ready = v.status === "ready";
+    const card = ready
+      ? el("a", { class: "card", href: `#/c/${v.id}` })
+      : el("div", { class: "card disabled", "aria-disabled": "true" });
+    card.appendChild(el("h2", {}, v.label));
+    if (v.note) card.appendChild(el("p", {}, v.note));
+    card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
+      el("span", { class: ready ? "tag" : "tag muted" }, ready ? "Ready" : "Coming soon")
+    ));
+    grid.appendChild(card);
+  }
   app.appendChild(grid);
 }
 
@@ -871,9 +931,53 @@ function renderExtrasPage() {
   }
 }
 
+// Gear control on the class page: set/clear the per-browser first-class date
+// that anchors every day's date label. Renders a button + a dropdown panel.
+function renderDateGear(cls) {
+  const wrap = el("div", { class: "date-gear", style: "position:relative; display:inline-block" });
+  const override = loadFirstDates()[cls.id] || "";
+  const effective = getFirstClassDate(cls);
+  const btn = el("button", { class: "btn ghost", "aria-expanded": "false", title: "Set the first class date" },
+    effective ? `⚙ Dates · ${effective}` : "⚙ Set dates");
+  const panel = el("div", {
+    class: "callout",
+    hidden: true,
+    style: "position:absolute; top:100%; left:0; z-index:20; margin-top:.4rem; min-width:18rem; text-align:left",
+  });
+  const input = el("input", { type: "date", value: override });
+  const status = el("p", { class: "muted", style: "margin:.5rem 0 0; font-size:.82rem" },
+    effective ? `Day dates count back from this first class meeting.` : "No date set — day dates stay blank.");
+  const actions = el("div", { class: "button-row", style: "margin-top:.5rem" },
+    el("button", { class: "btn", onClick: () => { setUserFirstClassDate(cls.id, input.value || null); render(); } }, "Save"),
+    el("button", { class: "btn ghost", onClick: () => { setUserFirstClassDate(cls.id, null); render(); } }, "Clear"),
+  );
+  panel.appendChild(el("label", { style: "display:block; font-size:.9rem; margin-bottom:.35rem" },
+    "First class meeting — Lesson 1, Day 3 (pick a Monday or Thursday):"));
+  panel.appendChild(input);
+  panel.appendChild(actions);
+  panel.appendChild(status);
+  btn.addEventListener("click", () => {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  wrap.appendChild(btn);
+  wrap.appendChild(panel);
+  return wrap;
+}
+
 function renderClass(cls) {
   clear(app);
-  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: cls.shortName }]));
+  const fam = findFamily(cls.id);
+  const trail = [{ label: "Classes", href: "#/" }];
+  if (fam) {
+    trail.push({ label: fam.shortName, href: `#/v/${fam.id}` });
+    const ver = fam.versions.find((v) => v.id === cls.id);
+    trail.push({ label: ver?.label || cls.shortName });
+  } else {
+    trail.push({ label: cls.shortName });
+  }
+  app.appendChild(crumbs(trail));
   app.appendChild(el("h1", {}, cls.longName || cls.shortName));
   if (cls.subtitle) app.appendChild(el("p", { class: "subtitle" }, cls.subtitle));
   if (cls.description) app.appendChild(el("p", {}, cls.description));
@@ -889,6 +993,7 @@ function renderClass(cls) {
   if (cls.source?.referenceUrl) {
     buttons.appendChild(el("a", { class: "btn ghost", href: cls.source.referenceUrl, target: "_blank", rel: "noopener" }, "Reference materials ↗"));
   }
+  buttons.appendChild(renderDateGear(cls));
   app.appendChild(buttons);
 
   app.appendChild(el("h2", { class: "section" }, "Lessons"));
@@ -1066,7 +1171,7 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
-  const allDates = computeLessonDates(cls.firstClassDate, cls.lessons);
+  const allDates = computeLessonDates(getFirstClassDate(cls), cls.lessons);
   const lessonIdx = cls.lessons.indexOf(lesson);
   const dayDates = allDates && lessonIdx >= 0 ? allDates[lessonIdx] : null;
 
@@ -1608,4 +1713,21 @@ document.addEventListener("click", (e) => {
   const rawTitle = a.getAttribute("title") || "";
   const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
   dayBlock._player.load(url, niceTitle, a);
+  autoCheckPlayed(a);
 });
+
+// Playing an exercise's audio ticks its checkbox — or the next unchecked "copy"
+// attempt box, so an "×2" task completes after its second play. Dispatching the
+// change event reuses the existing persistence + day/lesson cascade handlers.
+function autoCheckPlayed(a) {
+  const li = a.closest("li");
+  if (!li) return;
+  const attempts = li.querySelectorAll("input.attempt-cb");
+  const target = attempts.length
+    ? [...attempts].find((b) => !b.checked)
+    : li.querySelector('input[type="checkbox"]');
+  if (target && !target.checked) {
+    target.checked = true;
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
