@@ -1,13 +1,12 @@
 // Registry of available classes. Add a new entry here to surface a new class
 // in the selector. Each module is loaded lazily on demand.
 
-// `firstClassDate` (YYYY-MM-DD) is the date Lesson 1 Day 3 lands on — the
-// first class meeting. Must be a Monday or Thursday. Each subsequent lesson's
-// Day 3 is the next class day (Mon→Thu = +3, Thu→Mon = +4). Day 2 is the day
-// before Day 3; Day 1 is the day before that, skipping Sunday if it lands on
-// one. Lessons may share a day (e.g. L1 D3 = L2 D1 on the same Mon) — that's
-// expected: class meets, then the next lesson's prep begins. It can also be
-// set per-browser from the class page's date gear (see app.js getFirstClassDate).
+// `firstClassDate` (YYYY-MM-DD) is the date Lesson 1 Day 3 lands on — the first
+// class meeting. It anchors the schedule; every other day-slot (L1D1, L1D2,
+// L1D3, L2D1, …) is the next calendar day, skipping Sundays. Six day-slots fill
+// one Mon–Sat week, so any starting weekday works (Mon/Thu, Tue/Fri, …) — see
+// computeLessonDates in app.js. It can also be set per-browser from the class
+// page's date gear (see app.js getFirstClassDate).
 export const classes = [
   {
     id: "cwops-intermediate",
