@@ -760,6 +760,20 @@ textarea.hw-input {
   margin: 0 0 0.5rem;
 }
 
+/* Daily Morse Code Scales — literal sending rows, preserve spacing */
+.scales-block {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  background: var(--bg-3);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+}
+
 .guide-procedure {
   background: var(--bg-3);
   border-radius: 8px;

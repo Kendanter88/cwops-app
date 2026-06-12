@@ -7,7 +7,68 @@
 //   morse-runner — Bob Carter WR7Q, "Morse Runner Community Edition — CW
 //                  Academy User Guide" (v01, 06may24)
 
+// Daily Morse Code Scales — the literal sending-practice rows, replicated from
+// https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm so the
+// exercise lives in-app. Lessons ask for a subset (Warm Up only, Warm Up +
+// Drill, or Warm Up + Exercise); each maps to one of the scales-* guides below.
+const SC_WARMUP = `eeeee  ttttt  iiiii  mmmmm  sssss  ooooo  hhhhh  00000  55555
+
+aaaaa  nnnnn  uuuuu  ddddd  vvvvv  bbbbb  44444  66666
+
+abcdef ghijk lmnop qrstu vwxyz  12345  67890  /   ,   .   ?
+
+the quick brown fox jumpED over the lazy dogs back   7 0 3 6 4 5 1 2 8 9`;
+
+const SC_EXERCISE = `aaaaa  bbbbb  ccccc  ddddd  eeeee  fffff  ggggg  hhhhh  iiiii  jjjjj
+
+kkkkk  lllll  mmmmm  nnnnn  ooooo  ppppp  qqqqq  rrrrr
+
+sssss  ttttt  uuuuu  vvvvv   wwwww   xxxxx   yyyyy   zzzzz
+
+11111  22222  33333  44444  55555  66666  77777  88888  99999  00000`;
+
+const SC_DRILL = `the quick brown fox jumpED over the lazy dogs back   7 0 3 6 4 5 1 2 8 9
+
+the quick brown fox jumpED over the lazy dogs back   7 0 3 6 4 5 1 2 8 9
+
+BENS BEST BENT WIRE/5      BENS BEST BENT WIRE/5      BENS BEST BENT WIRE/5
+
+/ / / / /        , , , , ,       . . . . .         ? ? ? ? ?       * * * * *         + + + + +        = = = = =
+
+  <DN>                                                                      <sk>               <ar>             <BT>`;
+
+const SCALES_SOURCE = "https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm";
+
+function scalesGuide(id, label, blocks) {
+  return {
+    id,
+    title: `Daily Morse Code Scales — ${label}`,
+    subtitle: "Send these on your key/paddle as today's warm-up. Don't rush — focus on clean, even spacing.",
+    sourceLabel: "CWops Everyday Send Code",
+    sourceUrl: SCALES_SOURCE,
+    scalesAll: id !== "scales-all", // show a "full scales" link on the subset pages
+    blocks,
+  };
+}
+
 export const guides = {
+  "scales-warmup": scalesGuide("scales-warmup", "Warm Up", [
+    { heading: "Warm Up", text: SC_WARMUP },
+  ]),
+  "scales-warmup-drill": scalesGuide("scales-warmup-drill", "Warm Up + Drill", [
+    { heading: "Warm Up", text: SC_WARMUP },
+    { heading: "Drill", text: SC_DRILL },
+  ]),
+  "scales-warmup-exercise": scalesGuide("scales-warmup-exercise", "Warm Up + Exercise", [
+    { heading: "Warm Up", text: SC_WARMUP },
+    { heading: "Exercise", text: SC_EXERCISE },
+  ]),
+  "scales-all": scalesGuide("scales-all", "All Sections", [
+    { heading: "Warm Up", text: SC_WARMUP },
+    { heading: "Exercise", text: SC_EXERCISE },
+    { heading: "Drill", text: SC_DRILL },
+  ]),
+
   "lcwo-icr": {
     id: "lcwo-icr",
     title: "LCWO ICR — Practice Guide",

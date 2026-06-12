@@ -208,11 +208,13 @@ function parseDayItems(html) {
     const text = (p.textContent || "").replace(/\s+/g, " ").trim();
     const cls = p.getAttribute("class") || "";
     const hasHeading = !!p.querySelector("h1,h2,h3,h4,h5,h6");
-    if (!text || hasHeading || /MsoNormal/i.test(cls) || /^session\s+\d+\s*:?$/i.test(text)) {
+    // "Hearing Sounds — Intermediate Practice Files" is a reference link, not an
+    // exercise; it now lives as a button on the class page, so drop it here.
+    // Returning "skip" keeps every other paragraph's idx stable, so existing
+    // per-item checkbox state stays put.
+    if (!text || hasHeading || /MsoNormal/i.test(cls) || /^session\s+\d+\s*:?$/i.test(text) ||
+        /^hearing\s+sounds\b/i.test(text) || /intermediate practice files/i.test(text)) {
       return { type: "skip", idx };
-    }
-    if (/^hearing\s+sounds\b/i.test(text)) {
-      return { type: "header", idx, nodes: Array.from(p.childNodes) };
     }
     return { type: "task", idx, nodes: Array.from(p.childNodes) };
   }).filter((it) => it.type !== "skip");
@@ -230,6 +232,26 @@ function parseDayItems(html) {
 const LCWO_ICR_EXTERNAL = "https://cwops.org/wp-content/uploads/2025/03/LCWO-ICR-Guidelines.htm";
 const MCW_ICR_EXTERNAL = "https://cwops.org/wp-content/uploads/2024/08/MorseCode.World-ICR-Guidelines.htm";
 const MCW_TRAINER_URL = "https://morsecode.world/international/trainer/words.html";
+const SCALES_EXTERNAL = "https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm";
+const INTERMEDIATE_PRACTICE_EXTERNAL = "https://cwops.org/intermediate-practice-files/";
+
+// The day's scales instruction names which sections to send ("Warm Up", maybe
+// "Drill" and/or "Exercise"). Map that text to the matching in-app scales guide.
+function scalesSlugFor(text) {
+  const t = (text || "").toLowerCase();
+  const drill = t.includes("drill");
+  const exercise = t.includes("exercise");
+  if (drill && exercise) return "scales-all";
+  if (drill) return "scales-warmup-drill";
+  if (exercise) return "scales-warmup-exercise";
+  return "scales-warmup";
+}
+const SCALES_LABEL = {
+  "scales-warmup": "warm-up",
+  "scales-warmup-drill": "warm-up + drill",
+  "scales-warmup-exercise": "warm-up + exercise",
+  "scales-all": "warm-up + exercise + drill",
+};
 
 function extractWpm(text) {
   const m = /(\d+)\s*wpm/i.exec(text || "");
@@ -290,6 +312,17 @@ function rewriteGuideLinks(html, baseCtx) {
     p.querySelectorAll(`a[href="${MCW_ICR_EXTERNAL}"]`).forEach((a) => {
       a.setAttribute("href", MCW_TRAINER_URL);
     });
+    // Scales: collapse the verbose instruction to a uniform terse line that
+    // links to the in-app page showing only the required sections.
+    if (p.querySelector(`a[href="${SCALES_EXTERNAL}"]`)) {
+      const slug = scalesSlugFor(p.textContent);
+      while (p.firstChild) p.removeChild(p.firstChild);
+      p.appendChild(document.createTextNode(`Sending ${SCALES_LABEL[slug]}: `));
+      const a = document.createElement("a");
+      a.setAttribute("href", guideUrl(slug, ctx));
+      a.textContent = "Morse Code Scales";
+      p.appendChild(a);
+    }
     if (/morse\s+runner/i.test(p.textContent)) {
       linkifyPhrase(p, "Morse Runner", guideUrl("morse-runner", ctx));
     }
@@ -731,6 +764,9 @@ function rewriteGuideTools(tools, baseCtx) {
     if (t.url === MCW_ICR_EXTERNAL) {
       return { ...t, url: MCW_TRAINER_URL };
     }
+    if (t.url === SCALES_EXTERNAL) {
+      return { ...t, url: guideUrl(baseCtx.scalesSlug || "scales-all", baseCtx) };
+    }
     return t;
   });
 }
@@ -912,7 +948,7 @@ function renderDateGear(cls) {
   const override = loadFirstDates()[cls.id] || "";
   const effective = getFirstClassDate(cls);
   const btn = el("button", { class: "btn ghost", "aria-expanded": "false", title: "Set the first class date" },
-    effective ? `⚙ Dates · ${effective}` : "⚙ Set dates");
+    effective ? `⚙ Class start date · ${effective}` : "⚙ Class start date");
   const panel = el("div", {
     class: "callout",
     hidden: true,
@@ -957,6 +993,15 @@ function renderClass(cls) {
   }
   if (cls.source?.referenceUrl) {
     buttons.appendChild(el("a", { class: "btn ghost", href: cls.source.referenceUrl, target: "_blank", rel: "noopener" }, "Reference materials ↗"));
+  }
+  // Reference links that used to sit inline in every lesson now live here.
+  const usesScales = cls.lessons?.some((l) => l.days?.some((d) => (d.bodyHtml || "").includes(SCALES_EXTERNAL)));
+  const usesIntPractice = cls.lessons?.some((l) => l.days?.some((d) => (d.bodyHtml || "").includes(INTERMEDIATE_PRACTICE_EXTERNAL)));
+  if (usesScales) {
+    buttons.appendChild(el("a", { class: "btn ghost", href: SCALES_EXTERNAL, target: "_blank", rel: "noopener" }, "Daily Morse Code Scales ↗"));
+  }
+  if (usesIntPractice) {
+    buttons.appendChild(el("a", { class: "btn ghost", href: INTERMEDIATE_PRACTICE_EXTERNAL, target: "_blank", rel: "noopener" }, "Intermediate Practice Files ↗"));
   }
   buttons.appendChild(renderDateGear(cls));
   app.appendChild(buttons);
@@ -1416,7 +1461,24 @@ async function renderGuide(slug, params) {
     buttons.appendChild(el("a", { class: "btn ghost", href: guide.sourceUrl, target: "_blank", rel: "noopener" },
       "Original source ↗"));
   }
+  if (guide.scalesAll) {
+    const qs = params.toString();
+    buttons.appendChild(el("a", { class: "btn ghost", href: `#/g/scales-all${qs ? "?" + qs : ""}` },
+      "View all sections"));
+  }
   app.appendChild(buttons);
+
+  // Block-style guide (the Daily Morse Code Scales): literal monospace rows.
+  if (guide.blocks) {
+    for (const b of guide.blocks) {
+      const section = el("section", { class: "section guide-section" });
+      section.appendChild(el("h2", {}, b.heading));
+      section.appendChild(el("pre", { class: "scales-block" }, b.text));
+      app.appendChild(section);
+    }
+    if (guide.sourceLabel) app.appendChild(el("p", { class: "guide-attrib" }, `Source: ${guide.sourceLabel}`));
+    return;
+  }
 
   if (speed && typeof guide.speedHint === "function") {
     const dayLabel = dayNum ? ` Day ${dayNum} ·` : "";
