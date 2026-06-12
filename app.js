@@ -6,7 +6,7 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass, findFamily } from "./data/classes.js";
+import { classes, loadClass } from "./data/classes.js";
 import { extras } from "./data/extras.js";
 import { guides } from "./data/guides.js";
 
@@ -737,7 +737,6 @@ function parseHash() {
   if (parts.length === 0) return { route: "home" };
   if (parts[0] === "extras") return { route: "extras" };
   if (parts[0] === "g" && parts[1]) return { route: "guide", slug: parts[1], params };
-  if (parts[0] === "v" && parts[1]) return { route: "versions", familyId: parts[1] };
   if (parts[0] === "c" && parts[1]) {
     const classId = parts[1];
     if (parts[2] === "intro") return { route: "intro", classId };
@@ -758,7 +757,6 @@ async function render() {
     if (r.route === "home") return renderHome();
     if (r.route === "extras") return renderExtrasPage();
     if (r.route === "guide") return renderGuide(r.slug, r.params);
-    if (r.route === "versions") return renderVersionPicker(r.familyId);
     const cls = await loadClass(r.classId);
     if (!cls) return renderNotFound();
     if (r.route === "class") return renderClass(cls);
@@ -806,15 +804,13 @@ function renderHome() {
 
   const last = getLast();
   if (last) {
-    const fam = findFamily(last.classId);
-    const cls = classes.find((c) => c.id === last.classId) || fam?.versions?.find((v) => v.id === last.classId);
+    const cls = classes.find((c) => c.id === last.classId);
     if (cls) {
-      const name = fam ? `${fam.shortName} (${cls.label})` : cls.shortName;
       app.appendChild(
         el("div", { class: "callout section" },
           el("strong", {}, "Resume: "),
-          el("a", { href: `#/c/${last.classId}/lesson/${last.lessonId}` },
-            `${name} · Lesson ${last.lessonId}`
+          el("a", { href: `#/c/${cls.id}/lesson/${last.lessonId}` },
+            `${cls.shortName} · Lesson ${last.lessonId}`
           )
         )
       );
@@ -823,18 +819,10 @@ function renderHome() {
 
   const grid = el("div", { class: "grid" });
   for (const c of classes) {
-    // A version family routes to its picker; a single course goes straight in.
-    const href = c.versions ? `#/v/${c.id}` : `#/c/${c.id}`;
-    const card = el("a", { class: "card", href });
+    const card = el("a", { class: "card", href: `#/c/${c.id}` });
     card.appendChild(el("h2", {}, c.shortName));
     card.appendChild(el("div", { class: "meta" }, c.subtitle));
     card.appendChild(el("p", {}, c.blurb));
-    if (c.versions) {
-      const ready = c.versions.filter((v) => v.status === "ready").length;
-      card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
-        el("span", { class: "tag" }, `${c.versions.length} versions · ${ready} ready`)
-      ));
-    }
     if (c.status === "stub") {
       card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
         el("span", { class: "tag muted" }, "In progress")
@@ -853,30 +841,6 @@ function renderHome() {
     grid.appendChild(card);
   }
 
-  app.appendChild(grid);
-}
-
-function renderVersionPicker(familyId) {
-  clear(app);
-  const family = findFamily(familyId);
-  if (!family) return renderNotFound();
-  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: family.shortName }]));
-  app.appendChild(el("h1", {}, family.shortName));
-  app.appendChild(el("p", { class: "subtitle" }, "Choose a curriculum version."));
-
-  const grid = el("div", { class: "grid" });
-  for (const v of family.versions) {
-    const ready = v.status === "ready";
-    const card = ready
-      ? el("a", { class: "card", href: `#/c/${v.id}` })
-      : el("div", { class: "card disabled", "aria-disabled": "true" });
-    card.appendChild(el("h2", {}, v.label));
-    if (v.note) card.appendChild(el("p", {}, v.note));
-    card.appendChild(el("div", { class: "section", style: "margin: 0.6rem 0 0" },
-      el("span", { class: ready ? "tag" : "tag muted" }, ready ? "Ready" : "Coming soon")
-    ));
-    grid.appendChild(card);
-  }
   app.appendChild(grid);
 }
 
@@ -968,16 +932,7 @@ function renderDateGear(cls) {
 
 function renderClass(cls) {
   clear(app);
-  const fam = findFamily(cls.id);
-  const trail = [{ label: "Classes", href: "#/" }];
-  if (fam) {
-    trail.push({ label: fam.shortName, href: `#/v/${fam.id}` });
-    const ver = fam.versions.find((v) => v.id === cls.id);
-    trail.push({ label: ver?.label || cls.shortName });
-  } else {
-    trail.push({ label: cls.shortName });
-  }
-  app.appendChild(crumbs(trail));
+  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: cls.shortName }]));
   app.appendChild(el("h1", {}, cls.longName || cls.shortName));
   if (cls.subtitle) app.appendChild(el("p", { class: "subtitle" }, cls.subtitle));
   if (cls.description) app.appendChild(el("p", {}, cls.description));
@@ -1540,6 +1495,12 @@ function extractAssignmentCount(chipEl) {
   }
   const word = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/);
   if (word) return WORD_NUMS[word[1]];
+  // Streamlined courses write the rep count as "×2" / "x3".
+  const x = text.match(/(?:×|\bx)\s*(\d+)\b/);
+  if (x) {
+    const n = parseInt(x[1], 10);
+    if (n >= 1 && n <= 99) return n;
+  }
   return null;
 }
 
@@ -1558,6 +1519,7 @@ function createAudioPlayer() {
   let currentPlay = 1;
   let scrubbing = false;
   let loaded = false;
+  let currentChip = null; // the exercise link currently loaded, for auto-check
 
   const audio = new Audio();
   audio.preload = "metadata";
@@ -1666,6 +1628,8 @@ function createAudioPlayer() {
     titleEl.textContent = "⚠ Could not load audio (network or CORS).";
   });
   audio.addEventListener("ended", () => {
+    // A completed play-through ticks the exercise's next unchecked box.
+    if (currentChip) autoCheckPlayed(currentChip);
     if (infinite) {
       audio.currentTime = 0;
       audio.play().catch(() => {});
@@ -1682,6 +1646,7 @@ function createAudioPlayer() {
   function load(url, label, chipEl) {
     titleEl.textContent = label || url.split("/").pop();
     titleEl.title = url;
+    currentChip = chipEl || null;
     currentPlay = 1;
     targetPlays = extractAssignmentCount(chipEl) ?? 1;
     loaded = true;
@@ -1713,12 +1678,12 @@ document.addEventListener("click", (e) => {
   const rawTitle = a.getAttribute("title") || "";
   const niceTitle = rawTitle && !/^https?:\/\//i.test(rawTitle) ? rawTitle : a.textContent.replace(/[▶↗\s]+$/u, "").trim();
   dayBlock._player.load(url, niceTitle, a);
-  autoCheckPlayed(a);
 });
 
-// Playing an exercise's audio ticks its checkbox — or the next unchecked "copy"
-// attempt box, so an "×2" task completes after its second play. Dispatching the
-// change event reuses the existing persistence + day/lesson cascade handlers.
+// Called when an exercise's audio finishes a play-through: ticks its checkbox —
+// or the next unchecked "copy" attempt box, so an "×2" task completes after its
+// second play. The box can still be toggled manually. Dispatching the change
+// event reuses the existing persistence + day/lesson cascade handlers.
 function autoCheckPlayed(a) {
   const li = a.closest("li");
   if (!li) return;
