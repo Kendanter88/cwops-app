@@ -973,7 +973,7 @@ export default {
         },
         {
           label: "Day 2",
-          bodyHtml: "<p>Complete the sending 'Warm Up' and the 'Drill' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/LY7_18.mp3\" target=\"_blank\" rel=\"noopener\">LY7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/DIS6_18.mp3\" target=\"_blank\" rel=\"noopener\">DIS6-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/IM7_18.mp3\" target=\"_blank\" rel=\"noopener\">IM7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Using LCWO, set starting speed at 18 wpm and follow the guidelines in <a href=\"https://cwops.org/wp-content/uploads/2025/03/LCWO-ICR-Guidelines.htm\" target=\"_blank\" rel=\"noopener\">LCWO ICR</a> or <a href=\"https://cwops.org/wp-content/uploads/2024/08/MorseCode.World-ICR-Guidelines.htm\" target=\"_blank\" rel=\"noopener\">MCW ICR</a></p>\n<p>Getting Better with Harder Files</p>\n<p>Short Story head copy practice file SS 101–18. Listen to it once or twice and just pick out words.</p>",
+          bodyHtml: "<p>Complete the sending 'Warm Up' and the 'Drill' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/LY7_18.mp3\" target=\"_blank\" rel=\"noopener\">LY7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/DIS6_18.mp3\" target=\"_blank\" rel=\"noopener\">DIS6-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/IM7_18.mp3\" target=\"_blank\" rel=\"noopener\">IM7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Using LCWO, set starting speed at 18 wpm and follow the guidelines in <a href=\"https://cwops.org/wp-content/uploads/2025/03/LCWO-ICR-Guidelines.htm\" target=\"_blank\" rel=\"noopener\">LCWO ICR</a> or <a href=\"https://cwops.org/wp-content/uploads/2024/08/MorseCode.World-ICR-Guidelines.htm\" target=\"_blank\" rel=\"noopener\">MCW ICR</a></p>\n<p>Getting Better with Harder Files</p>\n<p>Short Story head copy practice file <a class=\"audio\" href=\"https://cwops.org/wp-content/uploads/2022/11/SS101_18.mp3\" target=\"_blank\" rel=\"noopener\">SS 101–18</a>. Listen to it once or twice and just pick out words.</p>",
           tools: [
             {
               name: "Scales",
@@ -1002,6 +1002,10 @@ export default {
             {
               name: "IM7-18",
               url: "https://cwa.cwops.org/wp-content/uploads/IM7_18.mp3",
+            },
+            {
+              name: "SS101-18",
+              url: "https://cwops.org/wp-content/uploads/2022/11/SS101_18.mp3",
             },
           ],
         },
@@ -1059,7 +1063,7 @@ export default {
         },
         {
           label: "Day 2",
-          bodyHtml: "<p>Complete the sending 'Warm Up' and the 'Drill' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/ING8_18.mp3\" target=\"_blank\" rel=\"noopener\">ING8-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/UN6_18.mp3\" target=\"_blank\" rel=\"noopener\">UN6-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/IN7_18.mp3\" target=\"_blank\" rel=\"noopener\">IN7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Getting Better with Harder Files</p>\n<p>Short Story head copy practice file SS 103–18. Please listen to it once and just pick words.</p>\n<p>Practice other 'Harder Files' on your own to improve!</p>",
+          bodyHtml: "<p>Complete the sending 'Warm Up' and the 'Drill' section of the Daily Morse Code <a href=\"https://cwops.org/wp-content/uploads/2024/08/Everyday-Send-Code-Web.htm\" target=\"_blank\" rel=\"noopener\">Scales</a></p>\n<p>Hearing Sounds <a href=\"https://cwops.org/intermediate-practice-files/\" target=\"_blank\" rel=\"noopener\">Intermediate Practice Files</a></p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/ING8_18.mp3\" target=\"_blank\" rel=\"noopener\">ING8-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/UN6_18.mp3\" target=\"_blank\" rel=\"noopener\">UN6-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Copy <a class=\"audio\" href=\"https://cwa.cwops.org/wp-content/uploads/IN7_18.mp3\" target=\"_blank\" rel=\"noopener\">IN7-18</a> at least two times. Try to hear the sound, not the characters.</p>\n<p>Getting Better with Harder Files</p>\n<p>Short Story head copy practice file <a class=\"audio\" href=\"https://cwops.org/wp-content/uploads/2022/11/SS103_18.mp3\" target=\"_blank\" rel=\"noopener\">SS 103–18</a>. Please listen to it once and just pick words.</p>\n<p>Practice other 'Harder Files' on your own to improve!</p>",
           tools: [
             {
               name: "Scales",
@@ -1080,6 +1084,10 @@ export default {
             {
               name: "IN7-18",
               url: "https://cwa.cwops.org/wp-content/uploads/IN7_18.mp3",
+            },
+            {
+              name: "SS103-18",
+              url: "https://cwops.org/wp-content/uploads/2022/11/SS103_18.mp3",
             },
           ],
         },
