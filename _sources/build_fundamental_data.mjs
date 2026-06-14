@@ -56,6 +56,7 @@ const course = {
   shortName: "CWA Fundamental",
   longName: "CW Academy Fundamental Curriculum (v2.0)",
   subtitle: "16 sessions · Farnsworth 6→11 WPM",
+  singleCheck: true, // one checkbox per exercise (no per-rep attempt boxes)
   description:
     "CW Academy's Fundamental course. Eight weeks building Instant Character Recognition and well-formed sending, from 6 to about 11 WPM Farnsworth, using the Daily Scales and LCWO.",
   source: {
