@@ -6,9 +6,9 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass } from "./data/classes.js";
-import { extras } from "./data/extras.js";
-import { guides } from "./data/guides.js";
+import { classes, loadClass } from "./data/classes.js?v=5";
+import { extras } from "./data/extras.js?v=5";
+import { guides } from "./data/guides.js?v=5";
 
 const app = document.getElementById("app");
 
