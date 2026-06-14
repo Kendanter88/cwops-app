@@ -14,7 +14,7 @@ export const classes = [
     subtitle: "16 sessions · Farnsworth 6→11 WPM",
     blurb: "CW Academy's entry-level course. Eight weeks of Instant Character Recognition and well-formed sending with the Daily Scales and LCWO, from 6 to ~11 WPM.",
     status: "ready",
-    loader: () => import("./cwops-fundamental.js?v=6"),
+    loader: () => import("./cwops-fundamental.js?v=7"),
   },
   {
     id: "cwops-intermediate",
@@ -24,7 +24,7 @@ export const classes = [
     status: "ready",
     firstClassDate: "2026-05-04",
     homeworkForm: true, // only Intermediate has a HW Google Form for now
-    loader: () => import("./cwops-intermediate.js?v=6"),
+    loader: () => import("./cwops-intermediate.js?v=7"),
   },
   {
     id: "cwops-advanced-proto",
@@ -32,7 +32,7 @@ export const classes = [
     subtitle: "16 sessions · 20→35 WPM",
     blurb: "CW Academy's Advanced curriculum (prototype). Head-copy speed building from 20 to 35 WPM with a daily long-form short-story assignment.",
     status: "ready",
-    loader: () => import("./cwops-advanced-proto.js?v=6"),
+    loader: () => import("./cwops-advanced-proto.js?v=7"),
   },
 ];
 

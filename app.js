@@ -6,9 +6,9 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass } from "./data/classes.js?v=6";
-import { extras } from "./data/extras.js?v=6";
-import { guides } from "./data/guides.js?v=6";
+import { classes, loadClass } from "./data/classes.js?v=7";
+import { extras } from "./data/extras.js?v=7";
+import { guides } from "./data/guides.js?v=7";
 
 const app = document.getElementById("app");
 
@@ -1146,6 +1146,14 @@ function renderLesson(cls, lessonId) {
   );
   app.appendChild(head);
   if (lesson.summary) app.appendChild(el("p", { class: "subtitle" }, lesson.summary));
+
+  // Quick Submit HW link at the top of the lesson (Intermediate only — it
+  // replaces the old global header button).
+  if (cls.homeworkForm) {
+    app.appendChild(el("div", { class: "submit-hw-top section" },
+      el("a", { class: "btn ghost", href: SUBMIT_HW_URL, target: "_blank", rel: "noopener" }, "Submit HW ↗")
+    ));
+  }
 
   if (lesson.goals?.length) {
     const sec = el("section", { class: "section" });
