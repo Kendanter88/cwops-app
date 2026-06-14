@@ -6,9 +6,9 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass } from "./data/classes.js?v=5";
-import { extras } from "./data/extras.js?v=5";
-import { guides } from "./data/guides.js?v=5";
+import { classes, loadClass } from "./data/classes.js?v=6";
+import { extras } from "./data/extras.js?v=6";
+import { guides } from "./data/guides.js?v=6";
 
 const app = document.getElementById("app");
 
@@ -1374,25 +1374,30 @@ function renderLesson(cls, lessonId) {
     app.appendChild(sec);
   }
 
-  app.appendChild(renderHwForm(cls, lesson));
+  // HW form + submission are gated per course (cls.homeworkForm). Only the
+  // Intermediate course has a HW Google Form today; Advanced/Fundamental hide
+  // this until their own form + submission links exist.
+  if (cls.homeworkForm) {
+    app.appendChild(renderHwForm(cls, lesson));
 
-  const submit = el("div", { class: "submit-hw section" });
-  const submitRow = el("div", { class: "submit-hw-buttons" });
-  submitRow.appendChild(el("button", {
-    type: "button",
-    class: "btn ghost",
-    onClick: () => openHwExport(cls, lesson),
-  }, "HW output ↗"));
-  submitRow.appendChild(el("a", {
-    class: "btn",
-    href: SUBMIT_HW_URL,
-    target: "_blank",
-    rel: "noopener",
-  }, "Submit HW ↗"));
-  submit.appendChild(submitRow);
-  submit.appendChild(el("p", { class: "submit-hw-note" },
-    "Submit HW NLT 3 hours prior to class time."));
-  app.appendChild(submit);
+    const submit = el("div", { class: "submit-hw section" });
+    const submitRow = el("div", { class: "submit-hw-buttons" });
+    submitRow.appendChild(el("button", {
+      type: "button",
+      class: "btn ghost",
+      onClick: () => openHwExport(cls, lesson),
+    }, "HW output ↗"));
+    submitRow.appendChild(el("a", {
+      class: "btn",
+      href: SUBMIT_HW_URL,
+      target: "_blank",
+      rel: "noopener",
+    }, "Submit HW ↗"));
+    submit.appendChild(submitRow);
+    submit.appendChild(el("p", { class: "submit-hw-note" },
+      "Submit HW NLT 3 hours prior to class time."));
+    app.appendChild(submit);
+  }
 
   // Lesson nav
   const nav = el("div", { class: "lesson-nav" });
