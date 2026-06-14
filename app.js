@@ -1249,7 +1249,8 @@ function renderLesson(cls, lessonId) {
           const text = el("span", { class: "text" });
           const itemText = item.nodes.map((n) => n.textContent || "").join("");
           for (const n of item.nodes) text.appendChild(n);
-          const copyCount = extractCopyCount(itemText);
+          // Courses can opt out of per-rep attempt boxes (one checkbox per item).
+          const copyCount = cls.singleCheck ? 0 : extractCopyCount(itemText);
           if (copyCount > 0) {
             const li = el("li", { class: "with-attempts" });
             const attempts = el("div", { class: "copy-attempts" });
