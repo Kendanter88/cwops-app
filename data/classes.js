@@ -9,6 +9,14 @@
 // page's date gear (see app.js getFirstClassDate).
 export const classes = [
   {
+    id: "cwops-fundamental",
+    shortName: "CWA Fundamental",
+    subtitle: "16 sessions · Farnsworth 6→11 WPM",
+    blurb: "CW Academy's entry-level course. Eight weeks of Instant Character Recognition and well-formed sending with the Daily Scales and LCWO, from 6 to ~11 WPM.",
+    status: "ready",
+    loader: () => import("./cwops-fundamental.js"),
+  },
+  {
     id: "cwops-intermediate",
     shortName: "CWA Intermediate",
     subtitle: "16 sessions · 10→25 WPM",
