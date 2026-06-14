@@ -3,17 +3,16 @@
 // Send/Copy lines; LCWO mentions are linked to the in-app LCWO guide (via the
 // existing rewrite), Daily Scales stay inline, embedded practice audio links
 // through. Run: node _sources/build_fundamental_data.mjs
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 
 const LCWO = "https://cwops.org/wp-content/uploads/2025/03/LCWO-ICR-Guidelines.htm";
-const files = ["_fund_s01-04.json", "_fund_s05-08.json", "_fund_s09-12.json", "_fund_s13-16.json"];
-const sessions = files
-  .flatMap((f) => JSON.parse(readFileSync(resolve(here, f), "utf8")))
+const sessions = (await import(pathToFileURL(resolve(here, "fundamental-sessions.js")).href)).default
+  .slice()
   .sort((a, b) => a.session - b.session);
 if (sessions.length !== 16) throw new Error(`Expected 16 sessions, got ${sessions.length}`);
 
