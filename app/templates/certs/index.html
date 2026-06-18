@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Certificates · CW Academy{% endblock %}
+{% block content %}
+<h1>Certificates</h1>
+<div class="panel">
+  <p class="muted">Signed in as {{ cu.email }}{% if cu.advisor_line %} — certificates will be signed
+    <strong>{{ cu.advisor_line }}</strong>{% endif %}.</p>
+  <p>The certificate generator (pick level, semester/year, paste recipients, preview, download/email)
+     lands in the next phase.</p>
+</div>
+{% endblock %}

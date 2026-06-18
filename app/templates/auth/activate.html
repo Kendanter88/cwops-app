@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Activate account · CW Academy{% endblock %}
+{% block content %}
+{% if invalid %}
+  <h1>Invitation invalid or expired</h1>
+  <div class="panel">
+    <p>This activation link is no longer valid. Ask an administrator to send a new invite.</p>
+  </div>
+{% else %}
+  <h1>Activate your account</h1>
+  <form class="panel" method="post" action="{{ url_for('auth.activate', token=token) }}" style="max-width:520px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="muted">Activating <strong>{{ user.email }}</strong></p>
+    <div class="row">
+      <div>
+        <label for="display_name">Your name (shown on certificates you issue)</label>
+        <input id="display_name" name="display_name" type="text" value="{{ user.display_name or '' }}" required>
+      </div>
+      <div>
+        <label for="callsign">Your callsign</label>
+        <input id="callsign" name="callsign" type="text" value="{{ user.callsign or '' }}" required>
+      </div>
+    </div>
+    <label for="password">Choose a password (min 8 characters)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <label for="password2">Confirm password</label>
+    <input id="password2" name="password2" type="password" autocomplete="new-password" required>
+    <button class="btn" type="submit">Activate &amp; sign in</button>
+  </form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Advisors · CW Academy{% endblock %}
+{% block content %}
+<h1>Advisors</h1>
+
+<form class="panel" method="post" action="{{ url_for('admin.users') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <strong>Add an advisor</strong>
+  <p class="muted">An invite email goes to this address; they set their own name, callsign, and password.</p>
+  <div class="row">
+    <div>
+      <label for="email">Email (their login)</label>
+      <input id="email" name="email" type="email" required>
+    </div>
+    <div style="flex:0 0 auto; align-self:flex-end;">
+      <label style="visibility:hidden">x</label>
+      <label class="muted"><input type="checkbox" name="is_admin" value="1"> admin</label>
+    </div>
+  </div>
+  <button class="btn" type="submit">Send invite</button>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Email</th><th>Name</th><th>Call</th><th>Role</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for p in people %}
+      <tr>
+        <td>{{ p.email }}</td>
+        <td>{{ p.display_name or '—' }}</td>
+        <td>{{ p.callsign or '—' }}</td>
+        <td>{{ 'Admin' if p.is_admin else 'Advisor' }}</td>
+        <td>
+          {% if p.is_active %}<span class="tag ok">active</span>
+          {% else %}<span class="tag">invited</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
