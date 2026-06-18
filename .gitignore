@@ -9,3 +9,7 @@ Thumbs.db
 # regenerate the JSON when the PDF changes)
 _sources/*.json
 _sources/__pycache__/
+
+# Python caches
+__pycache__/
+*.pyc
