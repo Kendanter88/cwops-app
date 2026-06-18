@@ -13,3 +13,10 @@ _sources/__pycache__/
 # Python caches
 __pycache__/
 *.pyc
+
+# Flask app: secrets and runtime data
+.env
+instance/
+*.db
+.venv/
+certs/generated/
