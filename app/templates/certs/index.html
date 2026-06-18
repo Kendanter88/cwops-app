@@ -1,11 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Certificates · CW Academy{% endblock %}
 {% block content %}
-<h1>Certificates</h1>
-<div class="panel">
-  <p class="muted">Signed in as {{ cu.email }}{% if cu.advisor_line %} — certificates will be signed
-    <strong>{{ cu.advisor_line }}</strong>{% endif %}.</p>
-  <p>The certificate generator (pick level, semester/year, paste recipients, preview, download/email)
-     lands in the next phase.</p>
-</div>
+<h1>Create certificates</h1>
+
+<form class="panel" method="post" action="{{ url_for('certs.review') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <strong>Advisor (appears on each certificate)</strong>
+  <p class="muted">Saved to your profile for next time.</p>
+  <div class="row">
+    <div>
+      <label for="advisor_name">Your name</label>
+      <input id="advisor_name" name="advisor_name" type="text" value="{{ cu.display_name or '' }}" required>
+    </div>
+    <div>
+      <label for="advisor_callsign">Your callsign</label>
+      <input id="advisor_callsign" name="advisor_callsign" type="text" value="{{ cu.callsign or '' }}" required>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:1rem">
+    <div>
+      <label for="level">Class level</label>
+      <select id="level" name="level" required>
+        {% for lv in levels %}<option value="{{ lv }}">{{ lv|capitalize }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Session (months)</label>
+      <div style="display:flex; gap:.4rem; align-items:center">
+        <select name="month1">{% for m in months %}<option {{ 'selected' if m==def_m1 }}>{{ m }}</option>{% endfor %}</select>
+        <span>/</span>
+        <select name="month2">{% for m in months %}<option {{ 'selected' if m==def_m2 }}>{{ m }}</option>{% endfor %}</select>
+      </div>
+    </div>
+    <div>
+      <label for="year">Year</label>
+      <input id="year" name="year" type="number" value="{{ def_year }}" min="2000" max="2100" required>
+    </div>
+  </div>
+
+  <label for="recipients" style="margin-top:1rem">Recipients — one per line: <span class="muted">Name, Callsign, Email</span></label>
+  <textarea id="recipients" name="recipients" rows="8" required
+    style="width:100%; padding:.5rem .6rem; background:#11151a; color:var(--fg); border:1px solid var(--line); border-radius:7px; font:14px/1.5 ui-monospace,Consolas,monospace"
+    placeholder="John Q Public, K1ABC, john@example.com&#10;Jane A Operator, W2XYZ, jane@example.com"></textarea>
+
+  <button class="btn" type="submit">Review certificates →</button>
+</form>
 {% endblock %}

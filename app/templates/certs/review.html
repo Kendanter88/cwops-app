@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Review certificates · CW Academy{% endblock %}
+{% block content %}
+<h1>Review &amp; send</h1>
+<p class="muted">
+  Level <strong>{{ level|capitalize }}</strong> · {{ date }} ·
+  advisor <strong>{{ advisor_name }} – {{ advisor_callsign }}</strong>.
+  Preview each one, then download (to add an e-signature in your PDF app) or email to the student.
+</p>
+
+<form class="panel" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="level" value="{{ level }}">
+  <input type="hidden" name="date" value="{{ date }}">
+  <input type="hidden" name="advisor_name" value="{{ advisor_name }}">
+  <input type="hidden" name="advisor_callsign" value="{{ advisor_callsign }}">
+
+  <table>
+    <thead><tr><th><input type="checkbox" id="all" checked></th><th>Name</th><th>Call</th><th>Email</th><th>Preview</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>
+          <input type="checkbox" name="send" value="{{ loop.index0 }}" checked class="pick">
+          <input type="hidden" name="name" value="{{ r.name }}">
+          <input type="hidden" name="callsign" value="{{ r.callsign }}">
+          <input type="hidden" name="email" value="{{ r.email }}">
+        </td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.callsign }}</td>
+        <td>{{ r.email }}</td>
+        <td><a href="{{ url_for('certs.preview', level=level, date=date, advisor_name=advisor_name, advisor_callsign=advisor_callsign, name=r.name, callsign=r.callsign) }}" target="_blank" rel="noopener">View PDF ↗</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:1rem; display:flex; gap:.6rem; flex-wrap:wrap">
+    <button class="btn ghost" type="submit" formaction="{{ url_for('certs.download') }}">Download selected (.pdf / .zip)</button>
+    <button class="btn" type="submit" formaction="{{ url_for('certs.email_send') }}">Email selected to students</button>
+    <a class="btn ghost" href="{{ url_for('certs.index') }}">← Edit list</a>
+  </div>
+</form>
+
+<script>
+  document.getElementById("all").addEventListener("change", function (e) {
+    document.querySelectorAll(".pick").forEach(function (c) { c.checked = e.target.checked; });
+  });
+</script>
+{% endblock %}

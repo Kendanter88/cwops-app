@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Email results · CW Academy{% endblock %}
+{% block content %}
+<h1>Email results</h1>
+<div class="panel">
+  <table>
+    <thead><tr><th>Name</th><th>Call</th><th>Email</th><th>Result</th></tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.name }}</td>
+        <td>{{ r.callsign }}</td>
+        <td>{{ r.email }}</td>
+        <td>{% if r.ok %}<span class="tag ok">sent</span>{% else %}<span class="tag">failed</span>{% endif %}
+            <span class="muted">{{ r.detail }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<a class="btn ghost" href="{{ url_for('certs.index') }}">← New batch</a>
+{% endblock %}

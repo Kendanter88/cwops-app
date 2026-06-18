@@ -21,6 +21,11 @@ def create_app(config=Config):
     # Ensure the instance dir (SQLite lives there) exists.
     Config.INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Make the top-level cert engine (certs/certgen.py) importable.
+    import sys
+    if str(Config.BASE_DIR) not in sys.path:
+        sys.path.insert(0, str(Config.BASE_DIR))
+
     db.init_app(app)
     csrf.init_app(app)
 
