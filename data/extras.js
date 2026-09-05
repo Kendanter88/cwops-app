@@ -36,5 +36,10 @@ export const extras = {
       name: "Pangrams Plus",
       url: "docs/Pangrams Plus.pdf",
     },
+    {
+      name: "Sending Practice Article (Sep 2026)",
+      blurb: "Short news article to send as plain-language practice — the Korean Air \"nut rage\" story.",
+      url: "docs/Sending-Practice-Article-Cho-9-2026.pdf",
+    },
   ],
 };
