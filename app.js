@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=7";
-import { extras } from "./data/extras.js?v=8";
+import { extras } from "./data/extras.js?v=9";
 import { guides } from "./data/guides.js?v=7";
 
 const app = document.getElementById("app");
@@ -890,6 +890,28 @@ function renderHome() {
   app.appendChild(grid);
 }
 
+// A collapsed dropdown holding the transcript of an audio extra. The text
+// file is fetched (same-origin) the first time the dropdown is expanded.
+function renderTranscript(url) {
+  const pre = el("pre", { class: "extras-text" }, "Loading…");
+  let loaded = false;
+  const details = el("details", {
+    class: "extras-text-wrap",
+    onToggle: (e) => {
+      if (!e.target.open || loaded) return;
+      loaded = true;
+      fetch(encodeURI(url))
+        .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+        .then((t) => { pre.textContent = t.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(); })
+        .catch(() => { pre.textContent = "⚠ Could not load the text file."; });
+    },
+  },
+    el("summary", { class: "extras-text-summary" }, "Show text"),
+    pre,
+  );
+  return details;
+}
+
 function renderExtrasPage() {
   clear(app);
   app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: "Extra practice" }]));
@@ -910,29 +932,44 @@ function renderExtrasPage() {
       const li = el("li", { class: "extras-item" });
       li.appendChild(el("div", { class: "extras-name" }, item.name));
       if (item.blurb) li.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
-      if (item.speeds?.length) {
+
+      const audioUrls = item.speeds?.length
+        ? item.speeds.map((s) => ({ url: s.url, label: `${s.wpm} ▶`, title: `${item.name} · ${s.wpm} wpm` }))
+        : (item.url && /\.mp3$/i.test(item.url)
+            ? [{ url: item.url, label: "Listen ▶", title: item.name }]
+            : []);
+
+      if (audioUrls.length) {
+        // Audio loads into an on-page player (same component the lessons use)
+        // instead of opening the file in a new tab.
         const chips = el("ul", { class: "tool-strip" });
-        for (const s of item.speeds) {
+        for (const a of audioUrls) {
           chips.appendChild(el("li", {},
-            el("a", {
-              class: "tool-chip audio",
-              href: encodeURI(s.url),
-              target: "_blank",
-              rel: "noopener",
-              title: `${item.name} · ${s.wpm} wpm`,
-            }, `${s.wpm} ▶`)
+            el("a", { class: "tool-chip audio", href: encodeURI(a.url), title: a.title }, a.label)
           ));
         }
         li.appendChild(chips);
+        const player = createAudioPlayer();
+        li._player = player;              // the click interceptor loads into this
+        li.appendChild(player.el);
+        // Optional transcript of what's being sent — collapsed under the player.
+        if (item.textUrl) li.appendChild(renderTranscript(item.textUrl));
       } else if (item.url) {
-        const isAudio = /\.mp3$/i.test(item.url);
-        li.appendChild(el("a", {
-          class: `tool-chip${isAudio ? " audio" : ""}`,
-          href: encodeURI(item.url),
-          target: "_blank",
-          rel: "noopener",
-          title: item.url,
-        }, isAudio ? "Listen ▶" : "Open PDF ↗"));
+        // Non-audio (PDF) sending examples: show the file inline in a
+        // collapsed dropdown instead of navigating away to open it.
+        const frame = el("iframe", { class: "extras-pdf-frame", title: `${item.name} (PDF)`, loading: "lazy" });
+        const details = el("details", {
+          class: "extras-pdf",
+          onToggle: (e) => {
+            // Lazy-load: only fetch the PDF the first time it's expanded.
+            if (e.target.open && !frame.getAttribute("src")) frame.setAttribute("src", encodeURI(item.url));
+          },
+        },
+          el("summary", { class: "extras-pdf-summary" }, "View contents"),
+          frame,
+          el("a", { class: "extras-pdf-open", href: encodeURI(item.url), target: "_blank", rel: "noopener" }, "Open full PDF ↗"),
+        );
+        li.appendChild(details);
       }
       list.appendChild(li);
     }
@@ -1758,7 +1795,7 @@ document.addEventListener("click", (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
   const url = a.getAttribute("href");
   if (!url || !/\.mp3(\?|$)/i.test(url)) return;
-  const dayBlock = a.closest(".day-block");
+  const dayBlock = a.closest(".day-block, .extras-item");
   if (!dayBlock?._player) return;
   e.preventDefault();
   const rawTitle = a.getAttribute("title") || "";

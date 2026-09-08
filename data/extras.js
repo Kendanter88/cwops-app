@@ -26,6 +26,36 @@ export const extras = {
         { wpm: 40, url: "audio/77words3x40wpm.mp3" },
       ],
     },
+    {
+      name: "Common Abbreviations (3x each)",
+      blurb: "Common ham abbreviations, each sent three times. Expand the text below to check your copy.",
+      textUrl: "audio/new-cw-3t-a.txt",
+      speeds: [
+        { wpm: 20, url: "audio/new-cw-3t-a-200000.mp3" },
+        { wpm: 22, url: "audio/new-cw-3t-a-220000.mp3" },
+        { wpm: 25, url: "audio/new-cw-3t-a-250000.mp3" },
+      ],
+    },
+    {
+      name: "Common Abbreviations II (3x each)",
+      blurb: "A second set of common abbreviations, each sent three times. Expand the text below to check your copy.",
+      textUrl: "audio/new-cw-3t.txt",
+      speeds: [
+        { wpm: 20, url: "audio/new-cw-abrv-3t-200000.mp3" },
+        { wpm: 22, url: "audio/new-cw-abrv-3t-220000.mp3" },
+        { wpm: 25, url: "audio/new-cw-abrv-3t-250000.mp3" },
+      ],
+    },
+    {
+      name: "Abbreviations & Punctuation (5x each)",
+      blurb: "Abbreviations plus ? / and comma, each sent five times. Expand the text below to check your copy.",
+      textUrl: "audio/abbrv3a.txt",
+      speeds: [
+        { wpm: 20, url: "audio/abbrv-times-3a-200000.mp3" },
+        { wpm: 22, url: "audio/abbrv-times-3a-220000.mp3" },
+        { wpm: 25, url: "audio/abbrv-times-3a-250000.mp3" },
+      ],
+    },
   ],
   sending: [
     {
