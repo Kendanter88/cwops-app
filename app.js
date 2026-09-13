@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=7";
-import { extras } from "./data/extras.js?v=9";
+import { extras } from "./data/extras.js?v=10";
 import { guides } from "./data/guides.js?v=7";
 
 const app = document.getElementById("app");

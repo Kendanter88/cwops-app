@@ -56,6 +56,17 @@ export const extras = {
         { wpm: 25, url: "audio/abbrv-times-3a-250000.mp3" },
       ],
     },
+    {
+      name: "ING Suffix Words (3x each)",
+      blurb: "The -ING suffix sound followed by words that contain it, each sent three times. Expand the text below to check your copy.",
+      textUrl: "audio/ing-ext-words-extended.txt",
+      speeds: [
+        { wpm: 20, url: "audio/ing-ext-words-extended-200000.mp3" },
+        { wpm: 22, url: "audio/ing-ext-words-extended-220000.mp3" },
+        { wpm: 25, url: "audio/ing-ext-words-extended-250000.mp3" },
+        { wpm: 28, url: "audio/ing-ext-words-extended-280000.mp3" },
+      ],
+    },
   ],
   sending: [
     {
