@@ -9,6 +9,7 @@
 import { classes, loadClass } from "./data/classes.js?v=7";
 import { extras } from "./data/extras.js?v=11";
 import { guides } from "./data/guides.js?v=7";
+import { links, findLink } from "./data/links.js?v=1";
 
 const app = document.getElementById("app");
 
@@ -794,6 +795,7 @@ function parseHash() {
   const parts = pathPart.split("/").filter(Boolean);
   if (parts.length === 0) return { route: "home" };
   if (parts[0] === "extras") return { route: "extras" };
+  if (parts[0] === "links") return parts[1] ? { route: "linkView", id: parts[1] } : { route: "links" };
   if (parts[0] === "g" && parts[1]) return { route: "guide", slug: parts[1], params };
   if (parts[0] === "c" && parts[1]) {
     const classId = parts[1];
@@ -815,6 +817,8 @@ async function render() {
   try {
     if (r.route === "home") return renderHome();
     if (r.route === "extras") return renderExtrasPage();
+    if (r.route === "links") return renderLinksPage();
+    if (r.route === "linkView") return renderLinkViewer(r.id);
     if (r.route === "guide") return renderGuide(r.slug, r.params);
     const cls = await loadClass(r.classId);
     if (!cls) return renderNotFound();
@@ -1067,6 +1071,85 @@ function renderClassHomework(cls) {
   const list = el("ul", { class: "extras-list section" });
   for (const item of items) list.appendChild(renderExtrasItem(item, { homework: true }));
   app.appendChild(list);
+}
+
+// Helpful links: outside reference material, grouped by category. Static
+// documents from http-only hosts are mirrored locally (see data/links.js) and
+// open in-app; live dashboards always open at the source.
+function renderLinksPage() {
+  clear(app);
+  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: "Helpful links" }]));
+  app.appendChild(el("h1", {}, "Helpful links"));
+  app.appendChild(el("p", { class: "subtitle" }, "Outside reference material worth keeping to hand. Everything credits its original author, and the source link is always one click away."));
+
+  for (const cat of links.categories) {
+    const sec = el("section", { class: "section" });
+    sec.appendChild(el("h3", {}, cat.name));
+    if (cat.blurb) sec.appendChild(el("p", { class: "extras-blurb" }, cat.blurb));
+
+    const list = el("ul", { class: "extras-list" });
+    for (const item of cat.items || []) {
+      const li = el("li", { class: "extras-item" });
+      li.appendChild(el("div", { class: "extras-name" }, item.name));
+      if (item.by) li.appendChild(el("div", { class: "link-by" }, item.by));
+      if (item.blurb) li.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
+
+      const strip = el("ul", { class: "tool-strip" });
+      if (item.mirror && item.id) {
+        strip.appendChild(el("li", {},
+          el("a", { class: "tool-chip", href: `#/links/${item.id}` },
+            item.kind === "pdf" ? "Read here" : "Open here")
+        ));
+      }
+      if (item.url) {
+        strip.appendChild(el("li", {},
+          el("a", { class: "tool-chip", href: item.url, target: "_blank", rel: "noopener", title: item.url },
+            item.live ? "Open live site ↗" : "Original source ↗")
+        ));
+      }
+      li.appendChild(strip);
+      list.appendChild(li);
+    }
+    sec.appendChild(list);
+    app.appendChild(sec);
+  }
+}
+
+// A mirrored document shown in-app, with its original source credited at the
+// very top so the author's page is always one click away.
+function renderLinkViewer(id) {
+  const item = findLink(id);
+  if (!item?.mirror) return renderNotFound();
+
+  clear(app);
+  app.appendChild(crumbs([
+    { label: "Classes", href: "#/" },
+    { label: "Helpful links", href: "#/links" },
+    { label: item.name },
+  ]));
+  app.appendChild(el("h1", {}, item.name));
+  if (item.by) app.appendChild(el("p", { class: "subtitle" }, item.by));
+
+  const src = el("div", { class: "link-source" });
+  if (item.url) {
+    src.appendChild(el("span", {}, "Local copy. Original source: "));
+    src.appendChild(el("a", { href: item.url, target: "_blank", rel: "noopener" }, item.url));
+  } else {
+    src.appendChild(el("span", {}, "Local copy held for class use."));
+  }
+  app.appendChild(src);
+
+  app.appendChild(el("iframe", {
+    class: "link-frame",
+    src: encodeURI(item.mirror),
+    title: item.name,
+    loading: "lazy",
+  }));
+
+  app.appendChild(el("p", { class: "extras-blurb" },
+    el("a", { class: "tool-chip", href: encodeURI(item.mirror), target: "_blank", rel: "noopener" },
+      item.kind === "pdf" ? "Open the PDF full screen ↗" : "Open this copy full screen ↗")
+  ));
 }
 
 // Gear control on the class page: set/clear the per-browser first-class date

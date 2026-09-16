@@ -93,6 +93,29 @@ code, kbd { font: 0.9em/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 }
 .brand { justify-self: start; }
 .topbar-center { justify-self: center; }
+.topbar-links { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: center; }
+
+/* Helpful links page */
+.link-by { color: var(--accent); font-size: 0.82rem; margin-top: 0.1rem; }
+.link-source {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--fg-mute);
+  overflow-wrap: anywhere;
+}
+.link-frame {
+  width: 100%;
+  height: min(78vh, 900px);
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
 .topnav { display: flex; gap: 0.25rem; align-items: center; justify-self: end; }
 .iconbtn {
   background: transparent;
