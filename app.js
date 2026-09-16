@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=7";
-import { extras } from "./data/extras.js?v=10";
+import { extras } from "./data/extras.js?v=11";
 import { guides } from "./data/guides.js?v=7";
 
 const app = document.getElementById("app");
@@ -63,6 +63,18 @@ function setChecked(classId, lessonId, itemIdx, value) {
   else delete s[classId][lessonId].homework[itemIdx];
   saveState(s);
 }
+// Done-state for extras homework items (keyed by the item's `id`, not a class).
+function isExtraHwDone(id) {
+  return !!loadState().extrasHomework?.[id];
+}
+function setExtraHwDone(id, value) {
+  const s = loadState();
+  s.extrasHomework ??= {};
+  if (value) s.extrasHomework[id] = true;
+  else delete s.extrasHomework[id];
+  saveState(s);
+}
+
 function lessonProgress(classId, lessonId, total) {
   const s = loadState();
   const checks = s[classId]?.[lessonId]?.homework || {};
@@ -787,6 +799,7 @@ function parseHash() {
     const classId = parts[1];
     if (parts[2] === "intro") return { route: "intro", classId };
     if (parts[2] === "assessment") return { route: "assessment", classId };
+    if (parts[2] === "homework") return { route: "classHomework", classId };
     if (parts[2] === "lesson" && parts[3]) {
       return { route: "lesson", classId, lessonId: Number(parts[3]) };
     }
@@ -808,6 +821,7 @@ async function render() {
     if (r.route === "class") return renderClass(cls);
     if (r.route === "intro") return renderIntro(cls);
     if (r.route === "assessment") return renderAssessment(cls);
+    if (r.route === "classHomework") return renderClassHomework(cls);
     if (r.route === "lesson") return renderLesson(cls, r.lessonId);
     return renderNotFound();
   } catch (err) {
@@ -879,11 +893,14 @@ function renderHome() {
 
   const copyCount = (extras.copy || []).length;
   const sendCount = (extras.sending || []).length;
-  if (copyCount + sendCount > 0) {
+  const hwCount = (extras.homework || []).length;
+  if (copyCount + sendCount + hwCount > 0) {
     const card = el("a", { class: "card", href: "#/extras" });
     card.appendChild(el("h2", {}, "Extra practice"));
-    card.appendChild(el("div", { class: "meta" }, `${copyCount} copy · ${sendCount} sending`));
-    card.appendChild(el("p", {}, "Standalone copy audio and sending exercises that aren't tied to a class lesson."));
+    const meta = [`${copyCount} copy`, `${sendCount} sending`];
+    if (hwCount) meta.push(`${hwCount} homework`);
+    card.appendChild(el("div", { class: "meta" }, meta.join(" · ")));
+    card.appendChild(el("p", {}, "Standalone copy audio, sending exercises and homework that aren't tied to a class lesson."));
     grid.appendChild(card);
   }
 
@@ -912,70 +929,144 @@ function renderTranscript(url) {
   return details;
 }
 
+// A collapsed dropdown holding step-by-step instructions for a homework item.
+function renderInstructions(lines) {
+  const ol = el("ol", { class: "extras-instructions" });
+  for (const line of lines) ol.appendChild(el("li", {}, line));
+  return el("details", { class: "extras-text-wrap" },
+    el("summary", { class: "extras-text-summary" }, "Instructions"),
+    ol,
+  );
+}
+
+// One extras/homework entry, collapsed to its title. Expanding reveals the
+// blurb, speed chips, on-page player and any transcript / instructions.
+// Homework items also get a done-checkbox beside the title; it sits outside
+// the <details> so ticking it doesn't toggle the fold.
+function renderExtrasItem(item, { homework = false } = {}) {
+  const li = el("li", { class: "extras-item" });
+
+  const body = el("div", { class: "extras-body" });
+  if (item.blurb) body.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
+
+  const audioUrls = item.speeds?.length
+    ? item.speeds.map((s) => ({ url: s.url, label: `${s.wpm} ▶`, title: `${item.name} · ${s.wpm} wpm` }))
+    : (item.url && /\.mp3$/i.test(item.url)
+        ? [{ url: item.url, label: "Listen ▶", title: item.name }]
+        : []);
+
+  if (audioUrls.length) {
+    // Audio loads into an on-page player (same component the lessons use)
+    // instead of opening the file in a new tab.
+    const chips = el("ul", { class: "tool-strip" });
+    for (const a of audioUrls) {
+      chips.appendChild(el("li", {},
+        el("a", { class: "tool-chip audio", href: encodeURI(a.url), title: a.title }, a.label)
+      ));
+    }
+    body.appendChild(chips);
+    const player = createAudioPlayer();
+    li._player = player;              // the click interceptor loads into this
+    body.appendChild(player.el);
+    // Optional transcript of what's being sent — collapsed under the player.
+    if (item.textUrl) body.appendChild(renderTranscript(item.textUrl));
+  } else if (item.url) {
+    // Non-audio (PDF) sending examples: show the file inline in a
+    // collapsed dropdown instead of navigating away to open it.
+    const frame = el("iframe", { class: "extras-pdf-frame", title: `${item.name} (PDF)`, loading: "lazy" });
+    const details = el("details", {
+      class: "extras-pdf",
+      onToggle: (e) => {
+        // Lazy-load: only fetch the PDF the first time it's expanded.
+        if (e.target.open && !frame.getAttribute("src")) frame.setAttribute("src", encodeURI(item.url));
+      },
+    },
+      el("summary", { class: "extras-pdf-summary" }, "View contents"),
+      frame,
+      el("a", { class: "extras-pdf-open", href: encodeURI(item.url), target: "_blank", rel: "noopener" }, "Open full PDF ↗"),
+    );
+    body.appendChild(details);
+  }
+  if (item.instructions?.length) body.appendChild(renderInstructions(item.instructions));
+
+  const fold = el("details", { class: "extras-fold" },
+    el("summary", { class: "extras-name" }, item.name),
+    body,
+  );
+
+  if (homework && item.id) {
+    const cb = el("input", {
+      type: "checkbox",
+      class: "extras-hw-cb",
+      checked: isExtraHwDone(item.id),
+      title: "Mark homework done",
+      "aria-label": `Mark ${item.name} done`,
+      onChange: (e) => {
+        setExtraHwDone(item.id, e.target.checked);
+        li.classList.toggle("done", e.target.checked);
+      },
+    });
+    if (cb.checked) li.classList.add("done");
+    li.appendChild(el("div", { class: "extras-hw-row" }, cb, fold));
+  } else {
+    li.appendChild(fold);
+  }
+  return li;
+}
+
+// A whole Copy / Sending / Homework group, collapsed to its heading + count.
+function renderExtrasGroup(title, items, opts = {}) {
+  const list = el("ul", { class: "extras-list" });
+  for (const item of items) list.appendChild(renderExtrasItem(item, opts));
+  return el("details", { class: "extras-group section" },
+    el("summary", { class: "extras-group-head" },
+      el("h3", {}, title),
+      el("span", { class: "tag muted" }, String(items.length)),
+    ),
+    list,
+  );
+}
+
 function renderExtrasPage() {
   clear(app);
   app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: "Extra practice" }]));
   app.appendChild(el("h1", {}, "Extra practice"));
-  app.appendChild(el("p", { class: "subtitle" }, "Copy audio and sending exercises outside of any specific class."));
+  app.appendChild(el("p", { class: "subtitle" }, "Copy audio, sending exercises and homework outside of any specific class. Tap a section, then an exercise, to open it."));
 
   const groups = [
-    { key: "copy", title: "Copy", items: extras.copy || [] },
-    { key: "sending", title: "Sending", items: extras.sending || [] },
+    { title: "Copy", items: extras.copy || [] },
+    { title: "Sending", items: extras.sending || [] },
+    { title: "Homework", items: extras.homework || [], opts: { homework: true } },
   ];
-
   for (const g of groups) {
     if (!g.items.length) continue;
-    const sec = el("section", { class: "section" });
-    sec.appendChild(el("h3", {}, g.title));
-    const list = el("ul", { class: "extras-list" });
-    for (const item of g.items) {
-      const li = el("li", { class: "extras-item" });
-      li.appendChild(el("div", { class: "extras-name" }, item.name));
-      if (item.blurb) li.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
-
-      const audioUrls = item.speeds?.length
-        ? item.speeds.map((s) => ({ url: s.url, label: `${s.wpm} ▶`, title: `${item.name} · ${s.wpm} wpm` }))
-        : (item.url && /\.mp3$/i.test(item.url)
-            ? [{ url: item.url, label: "Listen ▶", title: item.name }]
-            : []);
-
-      if (audioUrls.length) {
-        // Audio loads into an on-page player (same component the lessons use)
-        // instead of opening the file in a new tab.
-        const chips = el("ul", { class: "tool-strip" });
-        for (const a of audioUrls) {
-          chips.appendChild(el("li", {},
-            el("a", { class: "tool-chip audio", href: encodeURI(a.url), title: a.title }, a.label)
-          ));
-        }
-        li.appendChild(chips);
-        const player = createAudioPlayer();
-        li._player = player;              // the click interceptor loads into this
-        li.appendChild(player.el);
-        // Optional transcript of what's being sent — collapsed under the player.
-        if (item.textUrl) li.appendChild(renderTranscript(item.textUrl));
-      } else if (item.url) {
-        // Non-audio (PDF) sending examples: show the file inline in a
-        // collapsed dropdown instead of navigating away to open it.
-        const frame = el("iframe", { class: "extras-pdf-frame", title: `${item.name} (PDF)`, loading: "lazy" });
-        const details = el("details", {
-          class: "extras-pdf",
-          onToggle: (e) => {
-            // Lazy-load: only fetch the PDF the first time it's expanded.
-            if (e.target.open && !frame.getAttribute("src")) frame.setAttribute("src", encodeURI(item.url));
-          },
-        },
-          el("summary", { class: "extras-pdf-summary" }, "View contents"),
-          frame,
-          el("a", { class: "extras-pdf-open", href: encodeURI(item.url), target: "_blank", rel: "noopener" }, "Open full PDF ↗"),
-        );
-        li.appendChild(details);
-      }
-      list.appendChild(li);
-    }
-    sec.appendChild(list);
-    app.appendChild(sec);
+    app.appendChild(renderExtrasGroup(g.title, g.items, g.opts));
   }
+}
+
+// Homework items from extras.js that belong to this class (matched on classId).
+function classHomeworkItems(cls) {
+  return (extras.homework || []).filter((h) => h.classId === cls.id);
+}
+
+function renderClassHomework(cls) {
+  clear(app);
+  app.appendChild(crumbs([
+    { label: "Classes", href: "#/" },
+    { label: cls.shortName, href: `#/c/${cls.id}` },
+    { label: "Homework" },
+  ]));
+  app.appendChild(el("h1", {}, `${cls.shortName} · Homework`));
+  app.appendChild(el("p", { class: "subtitle" }, "Tap an exercise to open its player and instructions. Tick the box when you've finished it."));
+
+  const items = classHomeworkItems(cls);
+  if (!items.length) {
+    app.appendChild(el("p", { class: "empty" }, "No homework has been posted for this class yet."));
+    return;
+  }
+  const list = el("ul", { class: "extras-list section" });
+  for (const item of items) list.appendChild(renderExtrasItem(item, { homework: true }));
+  app.appendChild(list);
 }
 
 // Gear control on the class page: set/clear the per-browser first-class date
@@ -1042,6 +1133,18 @@ function renderClass(cls) {
   }
   buttons.appendChild(renderDateGear(cls));
   app.appendChild(buttons);
+
+  // Second row: class-level homework (extras.js items tagged with this classId).
+  const hwItems = classHomeworkItems(cls);
+  if (hwItems.length) {
+    const done = hwItems.filter((h) => isExtraHwDone(h.id)).length;
+    const row2 = el("div", { class: "button-row button-row-2" });
+    row2.appendChild(el("a", { class: "btn ghost", href: `#/c/${cls.id}/homework` },
+      "Homework",
+      el("span", { class: "tag muted btn-tag" }, `${done}/${hwItems.length}`),
+    ));
+    app.appendChild(row2);
+  }
 
   app.appendChild(el("h2", { class: "section" }, "Lessons"));
   const grid = el("div", { class: "grid" });

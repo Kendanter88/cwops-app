@@ -83,4 +83,26 @@ export const extras = {
       url: "docs/Sending-Practice-Article-Cho-9-2026.pdf",
     },
   ],
+  // Homework exercises. `id` keys the done-checkbox in localStorage; `classId`
+  // (optional) also surfaces the item on that class's Homework page.
+  homework: [
+    {
+      id: "adv-1a",
+      classId: "cwops-advanced-proto",
+      name: "ADV 1A",
+      blurb: "Six CQ calls and their QSO exchanges. Copy at 20 wpm, then listen casually at the faster speeds.",
+      instructions: [
+        "List the 6 callsigns that are calling CQ.",
+        "For the QSO lines, write down the QSO.",
+        "Once you have done this listen casually (don't write anything down) to the other faster files and see how much you can copy. This will help get you acclimated to the faster speeds.",
+      ],
+      speeds: [
+        { wpm: 20, url: "audio/HM-WK-1a-200000.mp3" },
+        { wpm: 22, url: "audio/HM-WK-1a-220000.mp3" },
+        { wpm: 25, url: "audio/HM-WK-1a-250000.mp3" },
+        { wpm: 28, url: "audio/HM-WK-1a-280000.mp3" },
+        { wpm: 30, url: "audio/HM-WK-1a-300000.mp3" },
+      ],
+    },
+  ],
 };
