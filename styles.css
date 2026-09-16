@@ -96,7 +96,12 @@ code, kbd { font: 0.9em/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .topbar-links { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: center; }
 
 /* Helpful links page */
-.link-by { color: var(--accent); font-size: 0.82rem; margin-top: 0.1rem; }
+.extras-group-blurb {
+  color: var(--fg-mute);
+  font-size: 0.85rem;
+  margin: 0 0 0.7rem;
+}
+.link-by { color: var(--accent); font-size: 0.82rem; margin-bottom: 0.3rem; }
 .link-source {
   margin: 0.75rem 0 0;
   padding: 0.6rem 0.8rem;
@@ -275,7 +280,8 @@ details[open] > .extras-group-head::before { content: "▾"; }
 .extras-group-head h3 { margin: 0; flex: 1; }
 .extras-group-head:hover { border-color: var(--accent); }
 .extras-group[open] > .extras-group-head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.extras-group[open] > .extras-list {
+.extras-group[open] > .extras-list,
+.extras-group[open] > .extras-group-body {
   padding: 0.75rem;
   border: 1px solid var(--border);
   border-top: 0;

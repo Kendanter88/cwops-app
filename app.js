@@ -1019,15 +1019,25 @@ function renderExtrasItem(item, { homework = false } = {}) {
 }
 
 // A whole Copy / Sending / Homework group, collapsed to its heading + count.
+// `opts.renderItem` lets another page (Helpful links) reuse this collapsing
+// shell with its own row markup; it defaults to the extras-practice row.
+// `opts.blurb` sits above the list, inside the fold.
 function renderExtrasGroup(title, items, opts = {}) {
+  const renderItem = opts.renderItem || renderExtrasItem;
   const list = el("ul", { class: "extras-list" });
-  for (const item of items) list.appendChild(renderExtrasItem(item, opts));
+  for (const item of items) list.appendChild(renderItem(item, opts));
+  // With a blurb the bordered box moves to a wrapper, so the intro text and
+  // the list sit inside one continuous panel.
+  const body = opts.blurb
+    ? [el("div", { class: "extras-group-body" },
+        el("p", { class: "extras-group-blurb" }, opts.blurb), list)]
+    : [list];
   return el("details", { class: "extras-group section" },
     el("summary", { class: "extras-group-head" },
       el("h3", {}, title),
       el("span", { class: "tag muted" }, String(items.length)),
     ),
-    list,
+    ...body,
   );
 }
 
@@ -1083,36 +1093,41 @@ function renderLinksPage() {
   app.appendChild(el("p", { class: "subtitle" }, "Outside reference material worth keeping to hand. Everything credits its original author, and the source link is always one click away."));
 
   for (const cat of links.categories) {
-    const sec = el("section", { class: "section" });
-    sec.appendChild(el("h3", {}, cat.name));
-    if (cat.blurb) sec.appendChild(el("p", { class: "extras-blurb" }, cat.blurb));
-
-    const list = el("ul", { class: "extras-list" });
-    for (const item of cat.items || []) {
-      const li = el("li", { class: "extras-item" });
-      li.appendChild(el("div", { class: "extras-name" }, item.name));
-      if (item.by) li.appendChild(el("div", { class: "link-by" }, item.by));
-      if (item.blurb) li.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
-
-      const strip = el("ul", { class: "tool-strip" });
-      if (item.mirror && item.id) {
-        strip.appendChild(el("li", {},
-          el("a", { class: "tool-chip", href: `#/links/${item.id}` },
-            item.kind === "pdf" ? "Read here" : "Open here")
-        ));
-      }
-      if (item.url) {
-        strip.appendChild(el("li", {},
-          el("a", { class: "tool-chip", href: item.url, target: "_blank", rel: "noopener", title: item.url },
-            item.live ? "Open live site ↗" : "Original source ↗")
-        ));
-      }
-      li.appendChild(strip);
-      list.appendChild(li);
-    }
-    sec.appendChild(list);
-    app.appendChild(sec);
+    app.appendChild(renderExtrasGroup(cat.name, cat.items || [], {
+      renderItem: renderLinkItem,
+      blurb: cat.blurb,
+    }));
   }
+}
+
+// One link row, collapsed to its title. Expanding shows the author, the
+// description and the buttons.
+function renderLinkItem(item) {
+  const body = el("div", { class: "extras-body" });
+  if (item.by) body.appendChild(el("div", { class: "link-by" }, item.by));
+  if (item.blurb) body.appendChild(el("div", { class: "extras-blurb" }, item.blurb));
+
+  const strip = el("ul", { class: "tool-strip" });
+  if (item.mirror && item.id) {
+    strip.appendChild(el("li", {},
+      el("a", { class: "tool-chip", href: `#/links/${item.id}` },
+        item.kind === "pdf" ? "Read here" : "Open here")
+    ));
+  }
+  if (item.url) {
+    strip.appendChild(el("li", {},
+      el("a", { class: "tool-chip", href: item.url, target: "_blank", rel: "noopener", title: item.url },
+        item.live ? "Open live site ↗" : "Original source ↗")
+    ));
+  }
+  body.appendChild(strip);
+
+  return el("li", { class: "extras-item" },
+    el("details", { class: "extras-fold" },
+      el("summary", { class: "extras-name" }, item.name),
+      body,
+    )
+  );
 }
 
 // A mirrored document shown in-app, with its original source credited at the
