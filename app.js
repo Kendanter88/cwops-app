@@ -110,6 +110,30 @@ function setDayItemChecked(classId, lessonId, dayKey, itemIdx, value) {
   saveState(s);
 }
 
+// The speed a listening exercise was actually completed at, so the lesson can
+// show "25 wpm" beside it afterwards even if the preferred speed later changes.
+function getItemSpeed(classId, lessonId, dayKey, itemIdx) {
+  return loadState()[classId]?.[lessonId]?.dayItemSpeed?.[dayKey]?.[itemIdx] || null;
+}
+function setItemSpeed(classId, lessonId, dayKey, itemIdx, wpm) {
+  const s = loadState();
+  s[classId] ??= {};
+  s[classId][lessonId] ??= {};
+  s[classId][lessonId].dayItemSpeed ??= {};
+  s[classId][lessonId].dayItemSpeed[dayKey] ??= {};
+  if (wpm) s[classId][lessonId].dayItemSpeed[dayKey][itemIdx] = wpm;
+  else delete s[classId][lessonId].dayItemSpeed[dayKey][itemIdx];
+  saveState(s);
+}
+
+// The speed of the first practice-audio link inside an item, used when a box is
+// ticked by hand rather than by finishing a play-through.
+function audioSpeedIn(node) {
+  const a = node?.querySelector?.("a.audio[href]");
+  const m = a && /_(\d{2})\.mp3(?:[?#]|$)/i.exec(a.getAttribute("href"));
+  return m ? Number(m[1]) : null;
+}
+
 function isAttemptChecked(classId, lessonId, dayKey, itemIdx, attemptIdx) {
   return !!loadState()[classId]?.[lessonId]?.dayItemAttempts?.[dayKey]?.[itemIdx]?.[attemptIdx];
 }
@@ -1503,6 +1527,9 @@ function renderAssessment(cls) {
 const TOOL_LABEL = { mpp: "MPP", wlt: "WLT" };
 
 function renderLesson(cls, lessonId) {
+  // Rebuilding the page detaches every player, so silence them first. Covers
+  // the in-place re-render from the speed switch, which fires no hashchange.
+  stopAllPlayers();
   clear(app);
   const lesson = cls.lessons.find((l) => l.id === lessonId);
   if (!lesson) return renderNotFound();
@@ -1573,7 +1600,7 @@ function renderLesson(cls, lessonId) {
     app.appendChild(renderSpeedPicker(cls, preferredSpeed, (next) => {
       setPreferredSpeed(next);
       const y = window.scrollY;
-      renderLesson(cls, lesson.id);
+      renderLesson(cls, lesson.id);   // stops current audio; see stopAllPlayers
       window.scrollTo(0, y);
     }));
   }
@@ -1648,8 +1675,17 @@ function renderLesson(cls, lessonId) {
           for (const n of item.nodes) text.appendChild(n);
           // Courses can opt out of per-rep attempt boxes (one checkbox per item).
           const copyCount = cls.singleCheck ? 0 : extractCopyCount(itemText);
+          // Badge recording the speed this exercise was finished at. It lives
+          // inside .text so the existing completed-item rule lines it out too.
+          const speedBadge = el("span", { class: "done-speed", hidden: true });
+          const showSpeed = (wpm) => {
+            speedBadge.textContent = wpm ? `${wpm} wpm` : "";
+            speedBadge.hidden = !wpm;
+          };
           if (copyCount > 0) {
             const li = el("li", { class: "with-attempts" });
+            text.appendChild(speedBadge);
+            showSpeed(getItemSpeed(cls.id, lesson.id, dayKey, item.idx));
             const attempts = el("div", { class: "copy-attempts" });
             const boxes = [];
             const syncComplete = (persist) => {
@@ -1657,6 +1693,9 @@ function renderLesson(cls, lessonId) {
               li.classList.toggle("complete", allDone);
               if (persist) {
                 setDayItemChecked(cls.id, lesson.id, dayKey, item.idx, allDone);
+                const wpm = allDone ? (li._playedSpeed || audioSpeedIn(text)) : null;
+                setItemSpeed(cls.id, lesson.id, dayKey, item.idx, wpm);
+                showSpeed(wpm);
                 syncDayFromItems();
               }
             };
@@ -1681,15 +1720,22 @@ function renderLesson(cls, lessonId) {
             list.appendChild(li);
             return;
           }
+          const li = el("li", {});
+          text.appendChild(speedBadge);
+          showSpeed(getItemSpeed(cls.id, lesson.id, dayKey, item.idx));
           const cb = el("input", {
             type: "checkbox",
             checked: isDayItemChecked(cls.id, lesson.id, dayKey, item.idx),
             onChange: (e) => {
               setDayItemChecked(cls.id, lesson.id, dayKey, item.idx, e.target.checked);
+              const wpm = e.target.checked ? (li._playedSpeed || audioSpeedIn(text)) : null;
+              setItemSpeed(cls.id, lesson.id, dayKey, item.idx, wpm);
+              showSpeed(wpm);
               syncDayFromItems();
             },
           });
-          list.appendChild(el("li", {}, el("label", {}, cb, text)));
+          li.appendChild(el("label", {}, cb, text));
+          list.appendChild(li);
         });
         block.appendChild(list);
       } else {
@@ -1987,11 +2033,17 @@ function extractAssignmentCount(chipEl) {
 
 // Pause any audio playing on this page when the route changes (SPA navigation
 // removes the player from the DOM but doesn't stop audio that's already playing).
+// Must also run on an in-place re-render (the speed switch rebuilds the lesson
+// without changing the hash). Otherwise the detached <audio> keeps playing with
+// its controls gone — two files at once, and no way to stop the orphan.
 const livePlayerAudios = new Set();
-window.addEventListener("hashchange", () => {
-  for (const a of livePlayerAudios) a.pause();
+function stopAllPlayers() {
+  for (const a of livePlayerAudios) {
+    try { a.pause(); } catch { /* already gone */ }
+  }
   livePlayerAudios.clear();
-});
+}
+window.addEventListener("hashchange", stopAllPlayers);
 
 function createAudioPlayer() {
   const prefs = loadPlayerPrefs();
@@ -2168,6 +2220,10 @@ document.addEventListener("click", (e) => {
 function autoCheckPlayed(a) {
   const li = a.closest("li");
   if (!li) return;
+  // Remember the speed this play-through actually used, so the completion
+  // badge reports what was heard rather than the current preference.
+  const m = /_(\d{2})\.mp3(?:[?#]|$)/i.exec(a.getAttribute("href") || "");
+  if (m) li._playedSpeed = Number(m[1]);
   const attempts = li.querySelectorAll("input.attempt-cb");
   const target = attempts.length
     ? [...attempts].find((b) => !b.checked)
