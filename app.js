@@ -6,7 +6,7 @@
 //   #/c/<classId>/assessment          — self-assessment
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
-import { classes, loadClass } from "./data/classes.js?v=7";
+import { classes, loadClass } from "./data/classes.js?v=8";
 import { extras } from "./data/extras.js?v=11";
 import { guides } from "./data/guides.js?v=7";
 import { links, findLink } from "./data/links.js?v=1";
@@ -213,6 +213,97 @@ function escapeHtml(s) {
 // from the source HTML (Word artifacts, stray "Session N:" links).
 // Items keep their original paragraph index so checkbox state stays stable
 // even when classification changes.
+// ---------------------------------------------------------------------------
+// Preferred practice speed (courses that declare `speeds`, i.e. Advanced)
+// ---------------------------------------------------------------------------
+// The curriculum names one baseline file per exercise (PR201-20). Every
+// Advanced file is also published at 25/30/35, so a student can pick a speed
+// once and have every lesson follow it. The baseline is a FLOOR: a session
+// that already calls for 30 never drops to a slower file.
+
+const SPEED_KEY = "mpc.speed.v1";
+
+function getPreferredSpeed(cls) {
+  const allowed = cls?.speeds || [];
+  if (!allowed.length) return null;
+  let raw = 0;
+  try { raw = Number(localStorage.getItem(SPEED_KEY)); } catch { /* blocked storage */ }
+  return allowed.includes(raw) ? raw : allowed[0];
+}
+
+function setPreferredSpeed(value) {
+  try { localStorage.setItem(SPEED_KEY, String(value)); } catch { /* blocked storage */ }
+}
+
+// The speed a practice file will actually play at, or null if the URL carries
+// no speed suffix (guides, the scales page, anything not a practice mp3).
+function effectiveSpeed(url, preferred) {
+  const m = /_(\d{2})\.mp3(?:[?#]|$)/i.exec(url || "");
+  if (!m) return null;
+  return Math.max(Number(m[1]), preferred);
+}
+
+function retimeUrl(url, preferred) {
+  const eff = effectiveSpeed(url, preferred);
+  return eff == null ? url : url.replace(/_(\d{2})\.mp3/i, `_${eff}.mp3`);
+}
+
+// "PR101-20" -> "PR101". The speed switch now says what speed it plays at.
+function stripSpeedSuffix(name) {
+  return String(name || "").replace(/[-–]\s*\d{2}\s*$/, "");
+}
+
+// Rewrite a day's HTML so its practice links point at the chosen speed. Where
+// the session's own baseline is faster than the choice, a badge says so rather
+// than letting the page imply a speed it is not playing.
+function applySpeedToHtml(html, preferred) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  for (const a of tmp.querySelectorAll("a.audio")) {
+    const url = a.getAttribute("href") || "";
+    const eff = effectiveSpeed(url, preferred);
+    if (eff == null) continue;
+    a.setAttribute("href", retimeUrl(url, preferred));
+    const name = stripSpeedSuffix(a.textContent);
+    a.textContent = name;
+    a.setAttribute("title", `${name} · ${eff} wpm`);
+    if (eff !== preferred) {
+      const badge = document.createElement("span");
+      badge.className = "speed-badge";
+      badge.textContent = `${eff} wpm`;
+      a.after(badge);
+    }
+  }
+  return tmp.innerHTML;
+}
+
+function applySpeedToTools(tools, preferred) {
+  return (tools || []).map((t) => {
+    const eff = effectiveSpeed(t.url, preferred);
+    if (eff == null) return t;
+    return { ...t, url: retimeUrl(t.url, preferred), name: stripSpeedSuffix(t.name) };
+  });
+}
+
+function renderSpeedPicker(cls, current, onPick) {
+  const sec = el("section", { class: "section speed-picker" });
+  sec.appendChild(el("h3", {}, "Set your preferred speed"));
+  sec.appendChild(el("p", { class: "speed-note" },
+    "Your choice is remembered for every lesson in this course. Exercises never play slower than the session itself calls for, so a later session may run faster than your pick."));
+  const row = el("div", { class: "speed-row" });
+  for (const s of cls.speeds) {
+    const active = s === current;
+    row.appendChild(el("button", {
+      type: "button",
+      class: `speed-btn${active ? " active" : ""}`,
+      "aria-pressed": active ? "true" : "false",
+      onClick: () => { if (!active) onPick(s); },
+    }, `${s} wpm`));
+  }
+  sec.appendChild(row);
+  return sec;
+}
+
 function parseDayItems(html) {
   const tmp = document.createElement("div");
   tmp.innerHTML = html;
@@ -1431,6 +1522,18 @@ function renderLesson(cls, lessonId) {
   const lessonIdx = cls.lessons.indexOf(lesson);
   const dayDates = allDates && lessonIdx >= 0 ? allDates[lessonIdx] : null;
 
+  // Speed switch sits directly above Daily practice, since that is what it
+  // retimes. Changing it re-renders the lesson in place, keeping scroll.
+  const preferredSpeed = getPreferredSpeed(cls);
+  if (lesson.days?.length && preferredSpeed) {
+    app.appendChild(renderSpeedPicker(cls, preferredSpeed, (next) => {
+      setPreferredSpeed(next);
+      const y = window.scrollY;
+      renderLesson(cls, lesson.id);
+      window.scrollTo(0, y);
+    }));
+  }
+
   if (lesson.days?.length) {
     const sec = el("section", { class: "section" });
     sec.appendChild(el("h3", {}, "Daily practice"));
@@ -1448,8 +1551,12 @@ function renderLesson(cls, lessonId) {
     lesson.days.forEach((day, dayIdx) => {
       const dayKey = `day-${dayIdx}`;
       const ctx = { classId: cls.id, lessonId: lesson.id, dayIdx };
-      const bodyHtml = rewriteGuideLinks(day.bodyHtml || "", ctx);
-      const tools = rewriteGuideTools(day.tools, ctx);
+      let bodyHtml = rewriteGuideLinks(day.bodyHtml || "", ctx);
+      let tools = rewriteGuideTools(day.tools, ctx);
+      if (preferredSpeed) {
+        bodyHtml = applySpeedToHtml(bodyHtml, preferredSpeed);
+        tools = applySpeedToTools(tools, preferredSpeed);
+      }
       const dateStr = dayDates ? formatDayDate(dayDates[dayIdx]) : "";
       const block = el("div", { class: "day-block" });
       const head = el("div", { class: "day-head" });

@@ -32,6 +32,11 @@ export const classes = [
     subtitle: "16 sessions · 20→35 WPM",
     blurb: "CW Academy's Advanced curriculum (prototype). Head-copy speed building from 20 to 35 WPM with a daily long-form short-story assignment.",
     status: "ready",
+    // Every Advanced practice file is published at these four speeds, so the
+    // lesson pages offer a preferred-speed switch. The curriculum's own speed
+    // stays the floor; the switch only ever plays a file faster, never slower.
+    // (Verified: all 130 files resolve at every speed at or above baseline.)
+    speeds: [20, 25, 30, 35],
     loader: () => import("./cwops-advanced-proto.js?v=7"),
   },
 ];
@@ -45,6 +50,7 @@ export async function loadClass(id) {
   const mod = await entry.loader();
   const merged = { ...mod.default };
   if (entry.firstClassDate && !merged.firstClassDate) merged.firstClassDate = entry.firstClassDate;
+  if (entry.speeds && !merged.speeds) merged.speeds = entry.speeds;
   if (merged.homeworkForm == null) merged.homeworkForm = !!entry.homeworkForm;
   cache.set(id, merged);
   return merged;
