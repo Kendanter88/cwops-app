@@ -83,6 +83,13 @@ export const extras = {
       url: "docs/Sending-Practice-Article-Cho-9-2026.pdf",
     },
   ],
+  // External practice tools. Each entry names a guide slug from data/guides.js;
+  // the extras page expands it into that guide's own steps, so the procedure is
+  // written once and shared with the full guide page at #/g/<slug>.
+  externalTools: [
+    { guide: "lcwo-icr" },
+    { guide: "morse-runner" },
+  ],
   // Homework exercises. `id` keys the done-checkbox in localStorage; `classId`
   // (optional) also surfaces the item on that class's Homework page.
   homework: [

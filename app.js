@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=8";
-import { extras } from "./data/extras.js?v=11";
+import { extras } from "./data/extras.js?v=12";
 import { guides } from "./data/guides.js?v=7";
 import { links, findLink } from "./data/links.js?v=1";
 
@@ -1141,12 +1141,56 @@ function renderExtrasPage() {
   const groups = [
     { title: "Copy", items: extras.copy || [] },
     { title: "Sending", items: extras.sending || [] },
+    {
+      title: "External tools",
+      items: (extras.externalTools || []).filter((t) => guides[t.guide]),
+      opts: { renderItem: renderToolItem },
+    },
     { title: "Homework", items: extras.homework || [], opts: { homework: true } },
   ];
   for (const g of groups) {
     if (!g.items.length) continue;
     app.appendChild(renderExtrasGroup(g.title, g.items, g.opts));
   }
+}
+
+// An external practice tool (LCWO, Morse Runner), collapsed to its name.
+// Expanding shows the tool link and that guide's own practice steps, pulled
+// live from data/guides.js rather than copied.
+function renderToolItem(entry) {
+  const guide = guides[entry.guide];
+  const name = guide.app?.name || guide.title.split(" — ")[0];
+
+  const body = el("div", { class: "extras-body" });
+  if (guide.subtitle) body.appendChild(el("div", { class: "extras-blurb" }, guide.subtitle));
+
+  const strip = el("ul", { class: "tool-strip" });
+  if (guide.app?.url) {
+    strip.appendChild(el("li", {},
+      el("a", { class: "tool-chip", href: guide.app.url, target: "_blank", rel: "noopener" },
+        `Open ${name} ↗`)));
+  }
+  strip.appendChild(el("li", {},
+    el("a", { class: "tool-chip", href: `#/g/${entry.guide}` }, "Full guide page")));
+  if (guide.sourceUrl) {
+    strip.appendChild(el("li", {},
+      el("a", { class: "tool-chip", href: guide.sourceUrl, target: "_blank", rel: "noopener" },
+        "Original source ↗")));
+  }
+  body.appendChild(strip);
+
+  if (guide.intro) body.appendChild(el("p", { class: "guide-intro" }, guide.intro));
+  for (const section of guideSectionNodes(guide)) body.appendChild(section);
+  if (guide.sourceLabel) {
+    body.appendChild(el("p", { class: "guide-attrib" }, `Source: ${guide.sourceLabel}`));
+  }
+
+  return el("li", { class: "extras-item" },
+    el("details", { class: "extras-fold" },
+      el("summary", { class: "extras-name" }, name),
+      body,
+    )
+  );
 }
 
 // Homework items from extras.js that belong to this class (matched on classId).
@@ -1779,6 +1823,47 @@ function toolLink(kind, url) {
   );
 }
 
+// The body of a guide (its sections, procedures and mode cards) as an array of
+// nodes. Shared by the full guide page and the External tools dropdowns on the
+// extras page, so the steps are written once.
+function guideSectionNodes(guide) {
+  return (guide.sections || []).map((sec) => {
+    const section = el("section", { class: "section guide-section" });
+    section.appendChild(el("h2", {}, sec.title));
+    if (sec.where) section.appendChild(el("p", { class: "guide-where" }, sec.where));
+    if (sec.blurb) section.appendChild(el("p", {}, sec.blurb));
+
+    if (sec.procedure?.steps?.length) {
+      const block = el("div", { class: "guide-procedure" });
+      block.appendChild(el("h3", {}, sec.procedure.title || "Procedure"));
+      const ol = el("ol");
+      for (const step of sec.procedure.steps) ol.appendChild(el("li", {}, step));
+      block.appendChild(ol);
+      section.appendChild(block);
+    }
+
+    for (const mode of sec.modes || []) {
+      const card = el("div", { class: "guide-mode" });
+      card.appendChild(el("h3", {}, mode.title));
+      const meta = [];
+      if (mode.startWpm != null) meta.push(`Start: ${mode.startWpm} WPM`);
+      if (mode.startChars != null) meta.push(`${mode.startChars} chars`);
+      if (mode.ladder?.length) meta.push(`Speed ladder: ${mode.ladder.join(" → ")} WPM`);
+      if (mode.charLadder?.length) meta.push(`Char ladder: ${mode.charLadder.join(" → ")}`);
+      if (meta.length) {
+        card.appendChild(el("div", { class: "guide-mode-meta" }, meta.join("  ·  ")));
+      }
+      if (mode.steps?.length) {
+        const ol = el("ol", { class: "guide-steps" });
+        for (const step of mode.steps) ol.appendChild(el("li", {}, step));
+        card.appendChild(ol);
+      }
+      section.appendChild(card);
+    }
+    return section;
+  });
+}
+
 async function renderGuide(slug, params) {
   clear(app);
   const guide = guides[slug];
@@ -1851,42 +1936,7 @@ async function renderGuide(slug, params) {
     app.appendChild(el("p", { class: "guide-intro" }, guide.intro));
   }
 
-  for (const sec of guide.sections) {
-    const section = el("section", { class: "section guide-section" });
-    section.appendChild(el("h2", {}, sec.title));
-    if (sec.where) section.appendChild(el("p", { class: "guide-where" }, sec.where));
-    if (sec.blurb) section.appendChild(el("p", {}, sec.blurb));
-
-    if (sec.procedure?.steps?.length) {
-      const block = el("div", { class: "guide-procedure" });
-      block.appendChild(el("h3", {}, sec.procedure.title || "Procedure"));
-      const ol = el("ol");
-      for (const step of sec.procedure.steps) ol.appendChild(el("li", {}, step));
-      block.appendChild(ol);
-      section.appendChild(block);
-    }
-
-    for (const mode of sec.modes || []) {
-      const card = el("div", { class: "guide-mode" });
-      card.appendChild(el("h3", {}, mode.title));
-      const meta = [];
-      if (mode.startWpm != null) meta.push(`Start: ${mode.startWpm} WPM`);
-      if (mode.startChars != null) meta.push(`${mode.startChars} chars`);
-      if (mode.ladder?.length) meta.push(`Speed ladder: ${mode.ladder.join(" → ")} WPM`);
-      if (mode.charLadder?.length) meta.push(`Char ladder: ${mode.charLadder.join(" → ")}`);
-      if (meta.length) {
-        card.appendChild(el("div", { class: "guide-mode-meta" }, meta.join("  ·  ")));
-      }
-      if (mode.steps?.length) {
-        const ol = el("ol", { class: "guide-steps" });
-        for (const step of mode.steps) ol.appendChild(el("li", {}, step));
-        card.appendChild(ol);
-      }
-      section.appendChild(card);
-    }
-
-    app.appendChild(section);
-  }
+  for (const section of guideSectionNodes(guide)) app.appendChild(section);
 
   if (guide.sourceLabel) {
     const note = el("p", { class: "guide-attrib" }, `Source: ${guide.sourceLabel}`);
