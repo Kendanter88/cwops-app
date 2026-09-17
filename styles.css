@@ -95,13 +95,9 @@ code, kbd { font: 0.9em/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .topbar-center { justify-self: center; }
 .topbar-links { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; justify-content: center; }
 
-/* Speed an exercise was completed at, struck through with the exercise name.
-   The strike must be stated explicitly: text-decoration does not propagate
-   into an inline-block child. */
-.checklist input:checked + .text .done-speed,
-.checklist li.with-attempts.complete > .text .done-speed {
-  text-decoration: line-through;
-}
+/* Speed an exercise was completed at. Deliberately NOT struck through with the
+   exercise name — being inline-block already stops the parent's line-through
+   propagating in, so it stays readable once the item is done. */
 .done-speed {
   display: inline-block;
   margin-left: 0.45rem;
