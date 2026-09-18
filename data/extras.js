@@ -82,6 +82,12 @@ export const extras = {
       blurb: "Short news article to send as plain-language practice — the Korean Air \"nut rage\" story.",
       url: "docs/Sending-Practice-Article-Cho-9-2026.pdf",
     },
+    {
+      name: "Dells little feet",
+      text: `Dells little feet looked different during summer
+session classes especially after he fell off the roof
+in Mississippi and shattered his goofy little glasses.`,
+    },
   ],
   // External practice tools. Each entry names a guide slug from data/guides.js;
   // the extras page expands it into that guide's own steps, so the procedure is

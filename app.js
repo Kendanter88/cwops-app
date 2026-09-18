@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=8";
-import { extras } from "./data/extras.js?v=12";
+import { extras } from "./data/extras.js?v=13";
 import { guides } from "./data/guides.js?v=7";
 import { links, findLink } from "./data/links.js?v=1";
 
@@ -1106,6 +1106,8 @@ function renderExtrasItem(item, { homework = false } = {}) {
     );
     body.appendChild(details);
   }
+  // Plain-text exercise (sending practice written out rather than a file).
+  if (item.text) body.appendChild(el("pre", { class: "extras-text" }, item.text));
   if (item.instructions?.length) body.appendChild(renderInstructions(item.instructions));
 
   const fold = el("details", { class: "extras-fold" },
