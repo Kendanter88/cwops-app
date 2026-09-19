@@ -9,7 +9,7 @@
 import { classes, loadClass } from "./data/classes.js?v=8";
 import { extras } from "./data/extras.js?v=13";
 import { guides } from "./data/guides.js?v=7";
-import { links, findLink } from "./data/links.js?v=1";
+import { links, findLink } from "./data/links.js?v=2";
 
 const app = document.getElementById("app");
 

@@ -65,6 +65,14 @@ export const links = {
       name: "Misc",
       items: [
         {
+          id: "cw-qso-protocol",
+          name: "CW QSO Protocol",
+          by: "Jim Crites, W6JIM",
+          blurb: "The shape of a CW contact phase by phase — intro, info, then ragchew — with a standard and a quick version of each exchange, plus notes on QRL, calling CQ and signing off.",
+          mirror: "docs/links/cw-qso-protocol.pdf",
+          kind: "pdf",
+        },
+        {
           id: "cut-numbers",
           name: "Cut Numbers",
           blurb: "Why CW operators send T for 0 and N for 9, and where the habit came from on the maritime bands.",
