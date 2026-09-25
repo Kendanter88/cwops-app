@@ -83,6 +83,48 @@ export const extras = {
       url: "docs/Sending-Practice-Article-Cho-9-2026.pdf",
     },
     {
+      name: "Dits Practice",
+      blurb: "Dit-heavy sending drill — warm up on S, 5 and H, then work the exercise lines.",
+      parts: [
+        {
+          title: "Warm up drill",
+          steps: [
+            "First send \"S\" a few times.",
+            "After this feels good then alternate sending \"5\" and \"H\".",
+            "Once you feel good about your sending do the dit exercise.",
+          ],
+        },
+        {
+          title: "Dit exercise",
+          text: `She is him & he is she.
+Is she he?
+He is she.
+Shall his be these?
+Did she see his fees?
+This is she.
+N5SHS is his call.
+Is NS5H hers?
+She is HH5HHS.
+Did she see these?
+He is in these trees.
+His trees are these.
+His tree is here.
+She & he.`,
+        },
+        {
+          title: "Extra dit practice",
+          steps: [
+            "She is 55 es she is his sister",
+            "MISSISSIPPI",
+            "W5HSH",
+            "RADIOTELETYPEWRITER",
+            "GEGEBEN",
+            "MISSISSIPPI SISSIES ARE SISSIER THAN TENNESSEE SISSIES",
+          ],
+        },
+      ],
+    },
+    {
       name: "Dells little feet",
       text: `Dells little feet looked different during summer
 session classes especially after he fell off the roof

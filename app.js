@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=8";
-import { extras } from "./data/extras.js?v=13";
+import { extras } from "./data/extras.js?v=14";
 import { guides } from "./data/guides.js?v=7";
 import { links, findLink } from "./data/links.js?v=2";
 
@@ -1108,6 +1108,20 @@ function renderExtrasItem(item, { homework = false } = {}) {
   }
   // Plain-text exercise (sending practice written out rather than a file).
   if (item.text) body.appendChild(el("pre", { class: "extras-text" }, item.text));
+  // Multi-part exercise: named sub-drills, each either numbered steps or a
+  // block of practice text, shown in order inside the one card.
+  for (const part of item.parts || []) {
+    const partEl = el("div", { class: "extras-part" });
+    if (part.title) partEl.appendChild(el("h4", { class: "extras-part-title" }, part.title));
+    if (part.blurb) partEl.appendChild(el("div", { class: "extras-blurb" }, part.blurb));
+    if (part.steps?.length) {
+      const ol = el("ol", { class: "extras-instructions" });
+      for (const step of part.steps) ol.appendChild(el("li", {}, step));
+      partEl.appendChild(ol);
+    }
+    if (part.text) partEl.appendChild(el("pre", { class: "extras-text" }, part.text));
+    body.appendChild(partEl);
+  }
   if (item.instructions?.length) body.appendChild(renderInstructions(item.instructions));
 
   const fold = el("details", { class: "extras-fold" },

@@ -357,6 +357,17 @@ details[open] > .extras-group-head::before { content: "▾"; }
 .extras-fold > .extras-name:hover { color: var(--accent); }
 .extras-body { padding: 0.35rem 0 0 1.4rem; }
 .extras-instructions { margin: 0.4rem 0 0; padding-left: 1.4rem; line-height: 1.5; }
+/* A named sub-drill inside one exercise card (e.g. Dits Practice). */
+.extras-part { margin-top: 0.9rem; }
+.extras-part:first-child { margin-top: 0.3rem; }
+.extras-part-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
 .extras-instructions li + li { margin-top: 0.35rem; }
 
 /* Homework: done-checkbox beside the folded title. */
