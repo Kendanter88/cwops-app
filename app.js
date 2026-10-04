@@ -2069,6 +2069,7 @@ function createAudioPlayer() {
   let scrubbing = false;
   let loaded = false;
   let currentChip = null; // the exercise link currently loaded, for auto-check
+  let retriesLeft = 1;    // one automatic retry per load, for dropped networks
 
   const audio = new Audio();
   audio.preload = "metadata";
@@ -2173,8 +2174,37 @@ function createAudioPlayer() {
   audio.addEventListener("durationchange", updateTime);
   audio.addEventListener("play", updatePlayBtn);
   audio.addEventListener("pause", updatePlayBtn);
+  // A failed load used to report a guess ("network or CORS"), which said
+  // nothing useful on a phone. Report what the browser actually complained
+  // about, and retry once — a dropped mobile connection is the common case and
+  // usually succeeds on a second attempt.
+  const MEDIA_ERRORS = {
+    1: "loading was aborted",
+    2: "the network dropped",
+    3: "the audio could not be decoded",
+    4: "this browser rejected the file",
+  };
   audio.addEventListener("error", () => {
-    titleEl.textContent = "⚠ Could not load audio (network or CORS).";
+    const code = audio.error?.code || 0;
+    const src = audio.src || "";
+    if (code === 2 && src && retriesLeft > 0) {
+      retriesLeft--;
+      titleEl.textContent = "⚠ Connection dropped — retrying…";
+      // Cache-bust so the retry is a fresh request rather than a failed entry.
+      setTimeout(() => {
+        audio.src = `${src}${src.includes("?") ? "&" : "?"}retry=${Date.now()}`;
+        audio.play().catch(() => {});
+      }, 600);
+      return;
+    }
+    clear(titleEl);
+    titleEl.appendChild(document.createTextNode(
+      `⚠ Couldn't play this file — ${MEDIA_ERRORS[code] || "unknown error"}. `));
+    if (src) {
+      titleEl.appendChild(el("a", {
+        href: src, target: "_blank", rel: "noopener",
+      }, "Open it directly ↗"));
+    }
   });
   audio.addEventListener("ended", () => {
     // A completed play-through ticks the exercise's next unchecked box.
@@ -2197,6 +2227,7 @@ function createAudioPlayer() {
     titleEl.title = url;
     currentChip = chipEl || null;
     currentPlay = 1;
+    retriesLeft = 1;
     targetPlays = extractAssignmentCount(chipEl) ?? 1;
     loaded = true;
     bar.classList.remove("audio-player--idle");
