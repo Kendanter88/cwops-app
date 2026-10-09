@@ -130,6 +130,16 @@ She & he.`,
 session classes especially after he fell off the roof
 in Mississippi and shattered his goofy little glasses.`,
     },
+    {
+      name: "Deep in the Weeds",
+      blurb: "One long sentence dense with E and EE words.",
+      text: `"The sixteen kneeling greens keepers ceased weeding
+to say shes been seen sweeping greenflies from the
+sheets beside the beehive where the busily buzzing
+bees followed the queen bee in her breeding flight
+under the watchful eyes of seventeen beekeepers
+standing knee deep in weeds"`,
+    },
   ],
   // External practice tools. Each entry names a guide slug from data/guides.js;
   // the extras page expands it into that guide's own steps, so the procedure is
