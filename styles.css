@@ -147,6 +147,32 @@ code, kbd { font: 0.9em/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   white-space: nowrap;
 }
 
+/* Settings page */
+.settings-stats { list-style: none; padding: 0; margin: 0; }
+.settings-stats li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.2rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-mute);
+  font-size: 0.9rem;
+}
+.settings-stats li:last-child { border-bottom: 0; }
+.settings-stats strong { color: var(--fg); font-variant-numeric: tabular-nums; }
+.danger-zone {
+  border: 1px solid var(--border);
+  border-left: 3px solid #d9534f;
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  background: var(--bg-2);
+}
+.danger-zone h3 { margin-bottom: 0.3rem; }
+.danger-ask { align-self: center; color: var(--fg-mute); font-size: 0.88rem; }
+.btn.danger { background: #d9534f; color: #fff; border: 1px solid #d9534f; }
+.btn.danger:hover { filter: brightness(1.08); }
+.btn.danger:disabled { opacity: 0.5; cursor: default; filter: none; }
+
 /* Helpful links page */
 .extras-group-blurb {
   color: var(--fg-mute);

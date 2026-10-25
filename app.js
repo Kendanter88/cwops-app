@@ -911,6 +911,7 @@ function parseHash() {
   if (parts.length === 0) return { route: "home" };
   if (parts[0] === "extras") return { route: "extras" };
   if (parts[0] === "links") return parts[1] ? { route: "linkView", id: parts[1] } : { route: "links" };
+  if (parts[0] === "settings") return { route: "settings" };
   if (parts[0] === "g" && parts[1]) return { route: "guide", slug: parts[1], params };
   if (parts[0] === "c" && parts[1]) {
     const classId = parts[1];
@@ -934,6 +935,7 @@ async function render() {
     if (r.route === "extras") return renderExtrasPage();
     if (r.route === "links") return renderLinksPage();
     if (r.route === "linkView") return renderLinkViewer(r.id);
+    if (r.route === "settings") return renderSettings();
     if (r.route === "guide") return renderGuide(r.slug, r.params);
     const cls = await loadClass(r.classId);
     if (!cls) return renderNotFound();
@@ -1340,6 +1342,94 @@ function renderLinkViewer(id) {
     el("a", { class: "tool-chip", href: encodeURI(item.mirror), target: "_blank", rel: "noopener" },
       item.kind === "pdf" ? "Open the PDF full screen ↗" : "Open this copy full screen ↗")
   ));
+}
+
+// Everything the app remembers about what you've done lives in one storage
+// key, so the reset is a single removal. Preferences (theme, preferred speed,
+// class start dates, player loop) are separate keys and are deliberately kept.
+function progressSummary() {
+  const s = loadState();
+  const out = { lessons: 0, lessonsComplete: 0, daysDone: 0, exercises: 0, reps: 0, homework: 0, extrasHomework: 0 };
+  for (const [key, cls] of Object.entries(s)) {
+    if (key === "_last" || key === "extrasHomework") continue;
+    if (!cls || typeof cls !== "object") continue;
+    for (const lesson of Object.values(cls)) {
+      if (!lesson || typeof lesson !== "object") continue;
+      out.lessons++;
+      if (lesson.complete) out.lessonsComplete++;
+      out.homework += Object.values(lesson.homework || {}).filter(Boolean).length;
+      out.daysDone += Object.values(lesson.days || {}).filter(Boolean).length;
+      for (const day of Object.values(lesson.dayItems || {})) {
+        out.exercises += Object.values(day).filter(Boolean).length;
+      }
+      for (const day of Object.values(lesson.dayItemAttempts || {})) {
+        for (const item of Object.values(day)) out.reps += Object.values(item).filter(Boolean).length;
+      }
+    }
+  }
+  out.extrasHomework = Object.values(s.extrasHomework || {}).filter(Boolean).length;
+  return out;
+}
+
+function renderSettings(flash) {
+  clear(app);
+  app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: "Settings" }]));
+  app.appendChild(el("h1", {}, "Settings"));
+  app.appendChild(el("p", { class: "subtitle" },
+    "Your progress is stored in this browser alone. It never leaves the device, which also means each device keeps its own separate record."));
+
+  if (flash) app.appendChild(el("div", { class: "callout section" }, flash));
+
+  const sum = progressSummary();
+  const total = sum.exercises + sum.reps + sum.homework + sum.extrasHomework +
+                sum.daysDone + sum.lessonsComplete;
+
+  const stats = el("section", { class: "section" });
+  stats.appendChild(el("h3", {}, "What's stored"));
+  const list = el("ul", { class: "settings-stats" });
+  for (const [label, n] of [
+    ["Lessons with any progress", sum.lessons],
+    ["Lessons marked complete", sum.lessonsComplete],
+    ["Days marked done", sum.daysDone],
+    ["Exercises ticked", sum.exercises],
+    ["Individual copy reps ticked", sum.reps],
+    ["Lesson homework ticked", sum.homework],
+    ["Extra-practice homework ticked", sum.extrasHomework],
+  ]) {
+    list.appendChild(el("li", {}, el("span", {}, label), el("strong", {}, String(n))));
+  }
+  stats.appendChild(list);
+  app.appendChild(stats);
+
+  const danger = el("section", { class: "section danger-zone" });
+  danger.appendChild(el("h3", {}, "Clear exercise progress"));
+  danger.appendChild(el("p", { class: "extras-blurb" },
+    "Clears every tick, completed day, completed lesson and recorded speed on this device. Your theme, preferred speed and class start dates are kept. This cannot be undone."));
+  const actions = el("div", { class: "button-row" });
+  danger.appendChild(actions);
+  app.appendChild(danger);
+
+  const showIdle = () => {
+    clear(actions);
+    actions.appendChild(el("button", {
+      type: "button",
+      class: "btn danger",
+      disabled: total === 0,
+      onClick: showConfirm,
+    }, total === 0 ? "Nothing to clear" : "Clear all exercise progress"));
+  };
+  const showConfirm = () => {
+    clear(actions);
+    actions.appendChild(el("span", { class: "danger-ask" }, "Clear it all? This can't be undone."));
+    actions.appendChild(el("button", { type: "button", class: "btn danger", onClick: doClear }, "Yes, clear it"));
+    actions.appendChild(el("button", { type: "button", class: "btn ghost", onClick: showIdle }, "Cancel"));
+  };
+  const doClear = () => {
+    try { localStorage.removeItem(STATE_KEY); } catch { /* blocked storage */ }
+    renderSettings("✓ Exercise progress cleared on this device.");
+    window.scrollTo(0, 0);
+  };
+  showIdle();
 }
 
 // Gear control on the class page: set/clear the per-browser first-class date
