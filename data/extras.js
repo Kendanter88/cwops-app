@@ -68,6 +68,16 @@ export const extras = {
       ],
     },
     {
+      name: "More Dits (3x each)",
+      blurb: "Dit-heavy words — radishes, wishes, shush, machine — each sent three times. Expand the text below to check your copy.",
+      textUrl: "audio/more-dits-x3.txt",
+      speeds: [
+        { wpm: 25, url: "audio/more-dits-x3-250000.mp3" },
+        { wpm: 28, url: "audio/more-dits-x3-280000.mp3" },
+        { wpm: 30, url: "audio/more-dits-x3-300000.mp3" },
+      ],
+    },
+    {
       name: "ING Suffix Words (3x each)",
       blurb: "The -ING suffix sound followed by words that contain it, each sent three times. Expand the text below to check your copy.",
       textUrl: "audio/ing-ext-words-extended.txt",
