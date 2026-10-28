@@ -1,0 +1,17 @@
+vvv vvv vvv
+
+the station has 4 feed lines
+they are for 40 30 20 es 10 meters
+the antenna switch is mounted on the mast
+just below the antenna
+all 4 feed lines connect to the switch
+there are 2 long runs of coax go from the switch to the house
+one line goes to a k3
+the other line goes to the kx3
+when either radio has a band change
+a band decoder detects it
+and sends the band info
+over a local net to the antenna switch
+to a band pass filter system
+the antenna switch and band pass filter
+follow the band change automatically.

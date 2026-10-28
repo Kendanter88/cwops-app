@@ -88,6 +88,17 @@ export const extras = {
         { wpm: 28, url: "audio/ing-ext-words-extended-280000.mp3" },
       ],
     },
+    {
+      name: "Copy Test 2 — Antenna Switching",
+      blurb: "A short plain-language paragraph about a station's feed lines, antenna switch and band decoder. Expand the text below to check your copy.",
+      textUrl: "audio/copy-test-2.txt",
+      speeds: [
+        { wpm: 22, url: "audio/copy-test-2-220000.mp3" },
+        { wpm: 25, url: "audio/copy-test-2-250000.mp3" },
+        { wpm: 28, url: "audio/copy-test-2-280000.mp3" },
+        { wpm: 30, url: "audio/copy-test-2-300000.mp3" },
+      ],
+    },
   ],
   sending: [
     {
@@ -242,6 +253,15 @@ standing knee deep in weeds"`,
         { wpm: 28, url: "audio/HM-WK-1a-280000.mp3" },
         { wpm: 30, url: "audio/HM-WK-1a-300000.mp3" },
       ],
+    },
+  ],
+  // Reference books (PDF). Each opens in the inline viewer and offers a
+  // download; only books whose authors allow free redistribution go here.
+  books: [
+    {
+      name: "The New DXer's Handbook (3rd ed., 2021)",
+      blurb: "Bryce Anderson, K7UA — listening, DX clusters, split operation, pileups, propagation and QSLing for new DXers. Shared with credit under the author's permission for personal, non-commercial use.",
+      url: "docs/The-New-DXers-Handbook-3rd-Ed-2021-K7UA.pdf",
     },
   ],
 };

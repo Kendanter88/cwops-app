@@ -7,7 +7,7 @@
 //   #/c/<classId>/lesson/<n>          — lesson detail
 
 import { classes, loadClass } from "./data/classes.js?v=8";
-import { extras } from "./data/extras.js?v=17";
+import { extras } from "./data/extras.js?v=18";
 import { guides } from "./data/guides.js?v=7";
 import { links, findLink } from "./data/links.js?v=2";
 
@@ -1015,13 +1015,15 @@ function renderHome() {
   const copyCount = (extras.copy || []).length;
   const sendCount = (extras.sending || []).length;
   const hwCount = (extras.homework || []).length;
-  if (copyCount + sendCount + hwCount > 0) {
+  const bookCount = (extras.books || []).length;
+  if (copyCount + sendCount + hwCount + bookCount > 0) {
     const card = el("a", { class: "card", href: "#/extras" });
     card.appendChild(el("h2", {}, "Extra practice"));
     const meta = [`${copyCount} copy`, `${sendCount} sending`];
     if (hwCount) meta.push(`${hwCount} homework`);
+    if (bookCount) meta.push(`${bookCount} ${bookCount === 1 ? "book" : "books"}`);
     card.appendChild(el("div", { class: "meta" }, meta.join(" · ")));
-    card.appendChild(el("p", {}, "Standalone copy audio, sending exercises and homework that aren't tied to a class lesson."));
+    card.appendChild(el("p", {}, "Standalone copy audio, sending exercises, homework and books that aren't tied to a class lesson."));
     grid.appendChild(card);
   }
 
@@ -1064,7 +1066,7 @@ function renderInstructions(lines) {
 // blurb, speed chips, on-page player and any transcript / instructions.
 // Homework items also get a done-checkbox beside the title; it sits outside
 // the <details> so ticking it doesn't toggle the fold.
-function renderExtrasItem(item, { homework = false } = {}) {
+function renderExtrasItem(item, { homework = false, download = false } = {}) {
   const li = el("li", { class: "extras-item" });
 
   const body = el("div", { class: "extras-body" });
@@ -1106,6 +1108,13 @@ function renderExtrasItem(item, { homework = false } = {}) {
       frame,
       el("a", { class: "extras-pdf-open", href: encodeURI(item.url), target: "_blank", rel: "noopener" }, "Open full PDF ↗"),
     );
+    // Books also get a direct download, outside the fold so it's one tap.
+    if (download) {
+      const filename = item.url.split("/").pop();
+      body.appendChild(el("ul", { class: "tool-strip" },
+        el("li", {}, el("a", { class: "tool-chip", href: encodeURI(item.url), download: filename }, "Download PDF ⬇")),
+      ));
+    }
     body.appendChild(details);
   }
   // Plain-text exercise (sending practice written out rather than a file).
@@ -1178,7 +1187,7 @@ function renderExtrasPage() {
   clear(app);
   app.appendChild(crumbs([{ label: "Classes", href: "#/" }, { label: "Extra practice" }]));
   app.appendChild(el("h1", {}, "Extra practice"));
-  app.appendChild(el("p", { class: "subtitle" }, "Copy audio, sending exercises and homework outside of any specific class. Tap a section, then an exercise, to open it."));
+  app.appendChild(el("p", { class: "subtitle" }, "Copy audio, sending exercises, homework and books outside of any specific class. Tap a section, then an item, to open it."));
 
   const groups = [
     { title: "Copy", items: extras.copy || [] },
@@ -1189,6 +1198,7 @@ function renderExtrasPage() {
       opts: { renderItem: renderToolItem },
     },
     { title: "Homework", items: extras.homework || [], opts: { homework: true } },
+    { title: "Books", items: extras.books || [], opts: { download: true } },
   ];
   for (const g of groups) {
     if (!g.items.length) continue;
